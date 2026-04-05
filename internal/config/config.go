@@ -45,13 +45,13 @@ type BackendConfig struct {
 
 type LockboxConfig struct {
 	FolderID string      `mapstructure:"folder_id"`
-	Endpoint string      `mapstructure:"endpoint"`
 	Auth     LockboxAuth `mapstructure:"auth"`
 }
 
 type LockboxAuth struct {
-	Type  string `mapstructure:"type"`
-	Token string `mapstructure:"token"`
+	Type               string `mapstructure:"type"`
+	Token              string `mapstructure:"token"`
+	ServiceAccountFile string `mapstructure:"service_account_file"`
 }
 
 type CacheConfig struct {

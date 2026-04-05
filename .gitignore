@@ -3,3 +3,5 @@ plan.md
 dist/
 jtsekret
 vendor/
+coverage.out
+.claude/worktrees/

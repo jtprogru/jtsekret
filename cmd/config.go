@@ -89,9 +89,15 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
   type: lockbox
   lockbox:
     folder_id: ""
-    endpoint: "lockbox.api.cloud.yandex.net:443"
+    # auth.type options:
+    #   oauth               — permanent OAuth token, env: YC_OAUTH_TOKEN
+    #   iam_token           — short-lived IAM token, env: YC_IAM_TOKEN (yc iam create-token)
+    #   service_account_key — SA key file, env: YC_SERVICE_ACCOUNT_KEY_FILE
+    #   instance_service_account — no credentials, uses VM metadata service
     auth:
       type: oauth
+      # token: ""
+      # service_account_file: ""
 
 cache:
   enabled: true
@@ -176,10 +182,10 @@ func runConfigHealth(cmd *cobra.Command, args []string) error {
 
 	lockboxCfg := map[string]interface{}{
 		"folder_id": cfg.Backend.Lockbox.FolderID,
-		"endpoint":  cfg.Backend.Lockbox.Endpoint,
-		"auth": map[string]string{
-			"type":  cfg.Backend.Lockbox.Auth.Type,
-			"token": cfg.Backend.Lockbox.Auth.Token,
+		"auth": map[string]interface{}{
+			"type":                 cfg.Backend.Lockbox.Auth.Type,
+			"token":                cfg.Backend.Lockbox.Auth.Token,
+			"service_account_file": cfg.Backend.Lockbox.Auth.ServiceAccountFile,
 		},
 	}
 

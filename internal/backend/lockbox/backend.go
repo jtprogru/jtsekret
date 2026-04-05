@@ -45,12 +45,8 @@ func NewBackend(cfg map[string]interface{}) (backend.Backend, error) {
 		return nil, fmt.Errorf("folder_id is required")
 	}
 
-	endpoint, _ := cfg["endpoint"].(string)
-
 	authCfg := AuthConfig{
-		Type:        "oauth",
-		Token:       "",
-		ServiceFile: "",
+		Type: "oauth",
 	}
 
 	if auth, ok := cfg["auth"].(map[string]interface{}); ok {
@@ -60,15 +56,15 @@ func NewBackend(cfg map[string]interface{}) (backend.Backend, error) {
 		if token, ok := auth["token"].(string); ok {
 			authCfg.Token = token
 		}
-		if sf, ok := auth["service_file"].(string); ok {
-			authCfg.ServiceFile = sf
+		if sf, ok := auth["service_account_file"].(string); ok {
+			authCfg.ServiceAccountFile = sf
 		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	client, err := NewClient(ctx, folderID, endpoint, authCfg)
+	client, err := NewClient(ctx, folderID, authCfg)
 	if err != nil {
 		return nil, fmt.Errorf("create lockbox client: %w", err)
 	}

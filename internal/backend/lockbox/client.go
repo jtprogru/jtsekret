@@ -33,25 +33,24 @@ import (
 type Client struct {
 	sdk      *ycsdk.SDK
 	folderID string
-	endpoint string
 }
 
 type AuthConfig struct {
-	Type        string
-	Token       string
-	ServiceFile string
+	Type               string
+	Token              string
+	ServiceAccountFile string
 }
 
-func NewClient(ctx context.Context, folderID, endpoint string, auth AuthConfig) (*Client, error) {
+func NewClient(ctx context.Context, folderID string, auth AuthConfig) (*Client, error) {
 	var creds ycsdk.Credentials
 
 	switch auth.Type {
 	case "oauth":
 		token := auth.Token
 		if token == "" {
-			token = os.Getenv("JCLOUD_TOKEN")
+			token = os.Getenv("YC_OAUTH_TOKEN")
 			if token == "" {
-				return nil, fmt.Errorf("OAuth token not provided. Run 'yc auth get-token' to get token")
+				return nil, fmt.Errorf("OAuth token not provided: set auth.token in config or YC_OAUTH_TOKEN env var")
 			}
 		}
 		creds = ycsdk.OAuthToken(token)
@@ -59,19 +58,19 @@ func NewClient(ctx context.Context, folderID, endpoint string, auth AuthConfig) 
 	case "iam_token":
 		token := auth.Token
 		if token == "" {
-			token = os.Getenv("YC_TOKEN")
+			token = os.Getenv("YC_IAM_TOKEN")
 			if token == "" {
-				return nil, fmt.Errorf("IAM token not provided")
+				return nil, fmt.Errorf("IAM token not provided: set auth.token in config or YC_IAM_TOKEN env var (run: yc iam create-token)")
 			}
 		}
 		creds = ycsdk.NewIAMTokenCredentials(token)
 
 	case "service_account_key":
-		keyFile := auth.ServiceFile
+		keyFile := auth.ServiceAccountFile
 		if keyFile == "" {
-			keyFile = os.Getenv("YANDEX_CLOUD_KEY_FILE")
+			keyFile = os.Getenv("YC_SERVICE_ACCOUNT_KEY_FILE")
 			if keyFile == "" {
-				return nil, fmt.Errorf("service account key file not provided")
+				return nil, fmt.Errorf("service account key file not provided: set auth.service_account_file in config or YC_SERVICE_ACCOUNT_KEY_FILE env var")
 			}
 		}
 		iamKey, err := iamkey.ReadFromJSONFile(keyFile)
@@ -87,18 +86,12 @@ func NewClient(ctx context.Context, folderID, endpoint string, auth AuthConfig) 
 		creds = ycsdk.InstanceServiceAccount()
 
 	default:
-		return nil, fmt.Errorf("unsupported auth type: %s (use: oauth, iam_token, service_account_key, instance_service_account)", auth.Type)
+		return nil, fmt.Errorf("unsupported auth type: %q (supported: oauth, iam_token, service_account_key, instance_service_account)", auth.Type)
 	}
 
-	config := ycsdk.Config{
+	sdk, err := ycsdk.Build(ctx, ycsdk.Config{
 		Credentials: creds,
-	}
-
-	if endpoint != "" {
-		config.Endpoint = endpoint
-	}
-
-	sdk, err := ycsdk.Build(ctx, config)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("build SDK: %w", err)
 	}
@@ -106,7 +99,6 @@ func NewClient(ctx context.Context, folderID, endpoint string, auth AuthConfig) 
 	return &Client{
 		sdk:      sdk,
 		folderID: folderID,
-		endpoint: endpoint,
 	}, nil
 }
 
@@ -117,3 +109,4 @@ func (c *Client) SDK() *ycsdk.SDK {
 func (c *Client) FolderID() string {
 	return c.folderID
 }
+

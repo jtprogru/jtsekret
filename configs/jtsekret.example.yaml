@@ -10,18 +10,34 @@ backend:
 
   # Yandex Cloud Lockbox configuration
   lockbox:
-    # Folder ID from Yandex Cloud
+    # Folder ID from Yandex Cloud console
     folder_id: "b1g1234567890abcdefghijklmnopqrstu"
 
-    # Lockbox API endpoint (optional, defaults to lockbox.api.cloud.yandex.net:443)
-    endpoint: "lockbox.api.cloud.yandex.net:443"
-
-    # Authentication configuration
+    # Authentication configuration — choose one of the types below:
     auth:
-      # Auth type: oauth, iam_token, service_account_key
-      type: oauth
-      # Token can be provided via environment variable JTSEKRET_BACKEND_LOCKBOX_AUTH_TOKEN
+      # --- Option 1: OAuth token (permanent, personal account) ---
+      # Get at: https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb
+      # Env var: YC_OAUTH_TOKEN
+      # type: oauth
       # token: ""
+
+      # --- Option 2: IAM token (short-lived, personal account) ---
+      # Generate: yc iam create-token
+      # Env var: YC_IAM_TOKEN
+      # type: iam_token
+      # token: ""
+
+      # --- Option 3: Service account key file (recommended for automation) ---
+      # Generate: yc iam key create --service-account-id <id> --output key.json
+      # Env var: YC_SERVICE_ACCOUNT_KEY_FILE
+      # type: service_account_key
+      # service_account_file: "/path/to/key.json"
+
+      # --- Option 4: Instance service account (for Yandex Cloud VMs) ---
+      # No credentials needed — uses VM metadata service automatically
+      # type: instance_service_account
+
+      type: oauth
 
 # Local encrypted cache configuration
 cache:

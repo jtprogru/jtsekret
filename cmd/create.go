@@ -67,10 +67,10 @@ func runCreate(cmd *cobra.Command, args []string) error {
 
 	lockboxCfg := map[string]interface{}{
 		"folder_id": cfg.Backend.Lockbox.FolderID,
-		"endpoint":  cfg.Backend.Lockbox.Endpoint,
-		"auth": map[string]string{
-			"type":  cfg.Backend.Lockbox.Auth.Type,
-			"token": cfg.Backend.Lockbox.Auth.Token,
+		"auth": map[string]interface{}{
+			"type":                 cfg.Backend.Lockbox.Auth.Type,
+			"token":                cfg.Backend.Lockbox.Auth.Token,
+			"service_account_file": cfg.Backend.Lockbox.Auth.ServiceAccountFile,
 		},
 	}
 
