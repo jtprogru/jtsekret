@@ -19,28 +19,39 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-package main
+package crypto
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/jtprogru/jtsekret/cmd"
+	"golang.org/x/term"
 )
 
-var (
-	version   = "dev"
-	commit    = "unknown"
-	buildTime = "unknown"
-)
-
-func init() {
-	cmd.Version = version
-	cmd.Commit = commit
-	cmd.BuildTime = buildTime
+func PromptPassword(prompt string) (string, error) {
+	fmt.Print(prompt)
+	password, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return "", fmt.Errorf("read password: %w", err)
+	}
+	fmt.Println()
+	return string(password), nil
 }
 
-func main() {
-	if err := cmd.Execute(); err != nil {
-		os.Exit(1)
+func PromptPasswordConfirm() (string, error) {
+	password, err := PromptPassword("Enter master password: ")
+	if err != nil {
+		return "", err
 	}
+
+	confirm, err := PromptPassword("Confirm master password: ")
+	if err != nil {
+		return "", err
+	}
+
+	if password != confirm {
+		return "", fmt.Errorf("passwords do not match")
+	}
+
+	return password, nil
 }

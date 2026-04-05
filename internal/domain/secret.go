@@ -19,28 +19,38 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-package main
+package domain
 
-import (
-	"os"
+import "time"
 
-	"github.com/jtprogru/jtsekret/cmd"
-)
-
-var (
-	version   = "dev"
-	commit    = "unknown"
-	buildTime = "unknown"
-)
-
-func init() {
-	cmd.Version = version
-	cmd.Commit = commit
-	cmd.BuildTime = buildTime
+type Entry struct {
+	Key   string
+	Value []byte
 }
 
-func main() {
-	if err := cmd.Execute(); err != nil {
-		os.Exit(1)
-	}
+type Secret struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	EntryKeys   []string          `json:"entry_keys"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+}
+
+type Payload struct {
+	SecretID  string  `json:"secret_id"`
+	VersionID string  `json:"version_id"`
+	Entries   []Entry `json:"entries"`
+}
+
+type Version struct {
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type CachedPayload struct {
+	Entries  map[string][]byte `json:"entries"`
+	CachedAt time.Time         `json:"cached_at"`
+	TTL      time.Duration     `json:"ttl"`
 }

@@ -19,28 +19,31 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-package main
+package cmd
 
 import (
-	"os"
+	"fmt"
 
-	"github.com/jtprogru/jtsekret/cmd"
+	"github.com/spf13/cobra"
 )
 
 var (
-	version   = "dev"
-	commit    = "unknown"
-	buildTime = "unknown"
+	Version   string
+	Commit    string
+	BuildTime string
 )
 
-func init() {
-	cmd.Version = version
-	cmd.Commit = commit
-	cmd.BuildTime = buildTime
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version information",
+	Long:  `Print version, commit, and build time information for jtsekret.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("jtsekret version %s\n", Version)
+		fmt.Printf("  commit: %s\n", Commit)
+		fmt.Printf("  built:  %s\n", BuildTime)
+	},
 }
 
-func main() {
-	if err := cmd.Execute(); err != nil {
-		os.Exit(1)
-	}
+func init() {
+	rootCmd.AddCommand(versionCmd)
 }

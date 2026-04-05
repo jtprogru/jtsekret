@@ -19,28 +19,38 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-package main
+package crypto
 
 import (
-	"os"
+	"crypto/rand"
+	"fmt"
 
-	"github.com/jtprogru/jtsekret/cmd"
+	"golang.org/x/crypto/argon2"
 )
 
-var (
-	version   = "dev"
-	commit    = "unknown"
-	buildTime = "unknown"
+const (
+	SaltSize    = 16
+	KeySize     = 32
+	Time        = 1
+	Memory      = 64 * 1024
+	Threads     = 4
+	Parallelism = 4
 )
 
-func init() {
-	cmd.Version = version
-	cmd.Commit = commit
-	cmd.BuildTime = buildTime
+func DeriveKey(password string, salt []byte) ([]byte, error) {
+	if len(salt) != SaltSize {
+		return nil, fmt.Errorf("invalid salt size: expected %d, got %d", SaltSize, len(salt))
+	}
+
+	key := argon2.IDKey([]byte(password), salt, Time, Memory, uint8(Threads), KeySize)
+	return key, nil
 }
 
-func main() {
-	if err := cmd.Execute(); err != nil {
-		os.Exit(1)
+func GenerateSalt() ([]byte, error) {
+	salt := make([]byte, SaltSize)
+	_, err := rand.Read(salt)
+	if err != nil {
+		return nil, fmt.Errorf("generate salt: %w", err)
 	}
+	return salt, nil
 }

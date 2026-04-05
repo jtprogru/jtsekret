@@ -1,0 +1,55 @@
+# jtsekret configuration file
+# Location: ~/.config/jtsekret/jtsekret.yaml or ./.jtsekret.yaml
+#
+# Environment variables override config values with JTSEKRET_ prefix.
+# Example: JTSEKRET_BACKEND_LOCKBOX_FOLDER_ID overrides backend.lockbox.folder_id
+
+backend:
+  # Backend type: lockbox, mock
+  type: lockbox
+
+  # Yandex Cloud Lockbox configuration
+  lockbox:
+    # Folder ID from Yandex Cloud
+    folder_id: "b1g1234567890abcdefghijklmnopqrstu"
+
+    # Lockbox API endpoint (optional, defaults to lockbox.api.cloud.yandex.net:443)
+    endpoint: "lockbox.api.cloud.yandex.net:443"
+
+    # Authentication configuration
+    auth:
+      # Auth type: oauth, iam_token, service_account_key
+      type: oauth
+      # Token can be provided via environment variable JTSEKRET_BACKEND_LOCKBOX_AUTH_TOKEN
+      # token: ""
+
+# Local encrypted cache configuration
+cache:
+  # Enable/disable cache
+  enabled: true
+
+  # Cache TTL in seconds (default: 3600 = 1 hour)
+  ttl: 3600
+
+  # Cache file path (supports ~ for home directory)
+  path: "~/.cache/jtsekret/cache.enc"
+
+  # Master password for cache encryption
+  # IMPORTANT: Set via JTSEKRET_CACHE_MASTER_PASSWORD environment variable
+  # Do not store password in this file!
+
+# Output configuration
+output:
+  # Output format: plain, table, json
+  # - plain: plain text output (default, for pipe usage)
+  # - table: formatted table for terminal
+  # - json: JSON output for scripting
+  format: plain
+
+  # Key separator for multiple keys (used in plain output)
+  key_separator: "\n"
+
+# Logging configuration
+log:
+  # Log level: debug, info, warn, error
+  level: warn
