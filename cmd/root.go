@@ -25,6 +25,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -91,9 +92,10 @@ func initConfig() {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
+		viper.AddConfigPath(filepath.Join(home, ".config", "jtsekret"))
 		viper.AddConfigPath(home)
 		viper.AddConfigPath(".")
-		viper.SetConfigName(".jtsekret")
+		viper.SetConfigName("jtsekret")
 	}
 
 	viper.AutomaticEnv()
