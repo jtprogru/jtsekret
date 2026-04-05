@@ -5,3 +5,4 @@ jtsekret
 vendor/
 coverage.out
 .claude/worktrees/
+.claude/settings.local.json
