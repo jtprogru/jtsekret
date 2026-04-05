@@ -50,7 +50,24 @@ type Version struct {
 }
 
 type CachedPayload struct {
-	Entries  map[string][]byte `json:"entries"`
-	CachedAt time.Time         `json:"cached_at"`
-	TTL      time.Duration     `json:"ttl"`
+	Entries   map[string][]byte `json:"entries"`
+	CachedAt  time.Time         `json:"cached_at"`
+	TTL       time.Duration     `json:"ttl"`
+	VersionID string            `json:"version_id"`
+}
+
+func EntriesToMap(entries []Entry) map[string][]byte {
+	m := make(map[string][]byte, len(entries))
+	for _, e := range entries {
+		m[e.Key] = e.Value
+	}
+	return m
+}
+
+func EntriesFromMap(m map[string][]byte) []Entry {
+	entries := make([]Entry, 0, len(m))
+	for k, v := range m {
+		entries = append(entries, Entry{Key: k, Value: v})
+	}
+	return entries
 }

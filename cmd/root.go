@@ -22,6 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -57,6 +58,10 @@ Examples:
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() error {
 	return rootCmd.Execute()
+}
+
+func ExecuteContext(ctx context.Context) error {
+	return rootCmd.ExecuteContext(ctx)
 }
 
 func init() {

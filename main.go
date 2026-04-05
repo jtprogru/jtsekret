@@ -22,7 +22,12 @@ THE SOFTWARE.
 package main
 
 import (
+	"context"
+	"log/slog"
 	"os"
+	"os/signal"
+	"runtime"
+	"syscall"
 
 	"github.com/jtprogru/jtsekret/cmd"
 )
@@ -40,7 +45,21 @@ func init() {
 }
 
 func main() {
-	if err := cmd.Execute(); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
+
+	slog.Info("starting jtsekret",
+		slog.String("version", version),
+		slog.String("commit", commit),
+		slog.String("runtime", runtime.Version()),
+	)
+
+	if err := cmd.ExecuteContext(ctx); err != nil {
+		slog.Error("execution failed", slog.Any("error", err))
 		os.Exit(1)
 	}
 }

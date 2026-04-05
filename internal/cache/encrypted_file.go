@@ -29,9 +29,27 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/jtprogru/jtsekret/internal/config"
 	"github.com/jtprogru/jtsekret/internal/crypto"
 	"github.com/jtprogru/jtsekret/internal/domain"
 )
+
+func NewCache(ctx context.Context, cfg config.CacheConfig) (Cache, error) {
+	if !cfg.Enabled {
+		return NewNoop(), nil
+	}
+
+	password := cfg.MasterPassword
+	if password == "" {
+		pwd, err := crypto.PromptPassword("Enter cache master password: ")
+		if err != nil {
+			return nil, fmt.Errorf("prompt password: %w", err)
+		}
+		password = pwd
+	}
+
+	return NewEncryptedFile(cfg.Path, password)
+}
 
 type EncryptedFile struct {
 	filePath string

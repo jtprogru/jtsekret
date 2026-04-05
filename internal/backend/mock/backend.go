@@ -63,6 +63,14 @@ func (m *MockBackend) GetSecret(ctx context.Context, nameOrID string) (*backend.
 	if !ok {
 		return nil, fmt.Errorf("secret not found: %s", nameOrID)
 	}
+	if secret == nil {
+		for _, s := range m.secrets {
+			if s != nil && s.Name == nameOrID {
+				return s, nil
+			}
+		}
+		return nil, fmt.Errorf("secret not found: %s", nameOrID)
+	}
 
 	return secret, nil
 }
@@ -73,6 +81,13 @@ func (m *MockBackend) GetPayload(ctx context.Context, nameOrID string, versionID
 
 	payload, ok := m.payloads[nameOrID]
 	if !ok {
+		if secret, ok := m.secrets[nameOrID]; ok {
+			payload, ok = m.payloads[secret.ID]
+			if !ok {
+				return nil, fmt.Errorf("payload not found: %s", nameOrID)
+			}
+			return payload, nil
+		}
 		return nil, fmt.Errorf("payload not found: %s", nameOrID)
 	}
 
@@ -108,6 +123,7 @@ func (m *MockBackend) CreateSecret(ctx context.Context, name, description string
 			VersionID: "1",
 			Entries:   entries,
 		}
+		m.payloads[name] = m.payloads[id]
 	}
 
 	return secret, nil
