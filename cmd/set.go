@@ -67,15 +67,13 @@ func runSet(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("create backend: %w", err)
 	}
 
-	existing, err := b.GetSecret(ctx, name)
+	currentPayload, err := b.GetPayload(ctx, name, "")
 	if err != nil {
-		return fmt.Errorf("get secret: %w", err)
+		return fmt.Errorf("get current payload: %w", err)
 	}
 
-	entries := make([]backend.Entry, 0, len(existing.EntryKeys)+1)
-	for _, k := range existing.EntryKeys {
-		entries = append(entries, backend.Entry{Key: k, Value: []byte("")})
-	}
+	entries := make([]backend.Entry, len(currentPayload.Entries))
+	copy(entries, currentPayload.Entries)
 
 	found := false
 	for i, e := range entries {

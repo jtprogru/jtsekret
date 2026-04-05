@@ -127,12 +127,14 @@ func runGet(cmd *cobra.Command, args []string) error {
 				entriesMap[e.Key] = e.Value
 			}
 			ttl := time.Duration(cfg.Cache.TTL) * time.Second
-			_ = c.Set(ctx, name, &domain.CachedPayload{
+			if cacheErr := c.Set(ctx, name, &domain.CachedPayload{
 				Entries:   entriesMap,
 				CachedAt:  time.Now(),
 				TTL:       ttl,
 				VersionID: payload.VersionID,
-			})
+			}); cacheErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to write cache: %v\n", cacheErr)
+			}
 		}
 	}
 

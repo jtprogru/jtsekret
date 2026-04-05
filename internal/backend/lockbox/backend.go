@@ -129,7 +129,7 @@ func (b *LockboxBackend) GetPayload(ctx context.Context, nameOrID string, versio
 		return nil, fmt.Errorf("get payload: %w", err)
 	}
 
-	return mapPayload(resp), nil
+	return mapPayload(nameOrID, resp), nil
 }
 
 func (b *LockboxBackend) CreateSecret(ctx context.Context, name, description string, entries []backend.Entry) (*backend.Secret, error) {
@@ -228,7 +228,7 @@ func mapSecret(s *lockboxpb.Secret) backend.Secret {
 	}
 }
 
-func mapPayload(p *lockboxpb.Payload) *backend.Payload {
+func mapPayload(secretID string, p *lockboxpb.Payload) *backend.Payload {
 	entries := make([]backend.Entry, 0, len(p.Entries))
 	for _, e := range p.Entries {
 		var value []byte
@@ -244,7 +244,9 @@ func mapPayload(p *lockboxpb.Payload) *backend.Payload {
 	}
 
 	return &backend.Payload{
-		Entries: entries,
+		SecretID:  secretID,
+		VersionID: p.VersionId,
+		Entries:   entries,
 	}
 }
 

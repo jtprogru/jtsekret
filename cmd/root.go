@@ -25,6 +25,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -52,6 +53,12 @@ Examples:
   jtsekret get my-api-token --key token | curl -H "Authorization: Bearer $(cat)" https://api.example.com
   jtsekret list
   jtsekret cache status`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if noCache {
+			viper.Set("cache.enabled", false)
+		}
+		return nil
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -74,7 +81,6 @@ func init() {
 
 	viper.SetEnvPrefix("JTSEKRET")
 	viper.BindPFlag("output.format", rootCmd.PersistentFlags().Lookup("output"))
-	viper.BindPFlag("cache.enabled", rootCmd.PersistentFlags().Lookup("no-cache"))
 }
 
 func initConfig() {
@@ -86,10 +92,10 @@ func initConfig() {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
+		viper.AddConfigPath(filepath.Join(home, ".config", "jtsekret"))
 		viper.AddConfigPath(home)
 		viper.AddConfigPath(".")
 		viper.SetConfigName("jtsekret")
-		viper.SetConfigName(".jtsekret")
 	}
 
 	viper.AutomaticEnv()

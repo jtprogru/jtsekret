@@ -30,6 +30,7 @@ import (
 
 	"github.com/jtprogru/jtsekret/internal/backend"
 	"github.com/jtprogru/jtsekret/internal/config"
+	"github.com/jtprogru/jtsekret/internal/crypto"
 )
 
 var (
@@ -90,8 +91,10 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	if createKey != "" {
 		value := createValue
 		if value == "" {
-			fmt.Print("Enter value: ")
-			fmt.Scanln(&value)
+			value, err = crypto.PromptPassword("Enter value: ")
+			if err != nil {
+				return fmt.Errorf("read value: %w", err)
+			}
 		}
 		entries = []backend.Entry{{Key: createKey, Value: []byte(value)}}
 	}
