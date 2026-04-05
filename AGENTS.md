@@ -6,11 +6,42 @@ This file provides guidelines and commands for agents operating in this reposito
 
 ## Build, Test, and Lint Commands
 
-### Build
-```bash
-# Build binary
-go build -o jtsekret .
+All build, test, and development operations should be performed using the Makefile:
 
+```bash
+# Show available targets
+make help
+
+# Build binary (with version info from git)
+make build
+
+# Run tests with race detector
+make test
+
+# Run unit tests only
+make test-unit
+
+# Run linter
+make lint
+
+# Format code
+make fmt
+
+# Run go vet
+make vet
+
+# Clean build artifacts
+make clean
+
+# Install binary to $GOPATH/bin
+make install
+```
+
+### Manual commands (if Makefile not available)
+
+If Makefile is not available, use these commands directly:
+
+```bash
 # Build with version info (for release)
 go build -ldflags="-X main.version=1.0.0 -X main.commit=$(git rev-parse HEAD)" -o jtsekret .
 
