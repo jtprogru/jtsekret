@@ -135,3 +135,57 @@ func TestEncrypt_InvalidKeySize(t *testing.T) {
 		t.Error("Encrypt() should return error for invalid key size")
 	}
 }
+
+func TestDecrypt_CiphertextTooShort(t *testing.T) {
+	key := make([]byte, KeySize)
+	// Ciphertext shorter than NonceSize: Decrypt must reject before
+	// touching the cipher.
+	short := make([]byte, NonceSize-1)
+	if _, err := Decrypt(short, key); err == nil {
+		t.Fatal("Decrypt() should reject ciphertext shorter than nonce")
+	}
+}
+
+func TestDecrypt_NonceWithoutCiphertext(t *testing.T) {
+	// Exactly NonceSize bytes: nonce present but no payload.
+	// gcm.Open should fail authentication.
+	key := make([]byte, KeySize)
+	noBody := make([]byte, NonceSize)
+	if _, err := Decrypt(noBody, key); err == nil {
+		t.Fatal("Decrypt() should reject nonce-only input (no GCM tag)")
+	}
+}
+
+func TestEncrypt_EmptyPlaintext(t *testing.T) {
+	// Empty plaintext is valid: result is just nonce + GCM tag.
+	key := make([]byte, KeySize)
+	ct, err := Encrypt(nil, key)
+	if err != nil {
+		t.Fatalf("Encrypt(nil): %v", err)
+	}
+	pt, err := Decrypt(ct, key)
+	if err != nil {
+		t.Fatalf("Decrypt of empty plaintext: %v", err)
+	}
+	if len(pt) != 0 {
+		t.Fatalf("decrypted empty plaintext = %v, want empty", pt)
+	}
+}
+
+func TestPromptPassword_NonTTYReturnsError(t *testing.T) {
+	// Under `go test` os.Stdin is a pipe, not a TTY, so term.ReadPassword
+	// returns an error. We just want to confirm we wrap it cleanly.
+	_, err := PromptPassword("test prompt: ")
+	if err == nil {
+		t.Fatal("PromptPassword in non-TTY context should return an error")
+	}
+}
+
+func TestPromptPasswordConfirm_NonTTYReturnsError(t *testing.T) {
+	// Same reasoning: chains two PromptPassword calls; the first one
+	// fails under the test runner.
+	_, err := PromptPasswordConfirm()
+	if err == nil {
+		t.Fatal("PromptPasswordConfirm in non-TTY context should return an error")
+	}
+}
