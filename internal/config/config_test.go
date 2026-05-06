@@ -210,6 +210,109 @@ func TestGetLogLevel(t *testing.T) {
 	}
 }
 
+func TestValidate_PerBackendRequirements(t *testing.T) {
+	cases := []struct {
+		name    string
+		cfg     *Config
+		wantOK  bool
+		wantErr error
+	}{
+		{
+			name:    "unknown backend type",
+			cfg:     &Config{Backend: BackendConfig{Type: "weird"}},
+			wantErr: ErrUnknownBackendType,
+		},
+		{
+			name:    "github without repo",
+			cfg:     &Config{Backend: BackendConfig{Type: "github", Github: GithubConfig{MasterPassword: "p"}}},
+			wantErr: ErrMissingGithubRepo,
+		},
+		{
+			name:    "github without master password",
+			cfg:     &Config{Backend: BackendConfig{Type: "github", Github: GithubConfig{Repo: "owner/repo"}}},
+			wantErr: ErrMissingGithubMaster,
+		},
+		{
+			name: "github with bad auth.type",
+			cfg: &Config{Backend: BackendConfig{Type: "github", Github: GithubConfig{
+				Repo: "owner/repo", MasterPassword: "p",
+				Auth: GithubAuth{Type: "bogus"},
+			}}},
+			wantErr: ErrUnknownGithubAuthType,
+		},
+		{
+			name: "github happy path",
+			cfg: &Config{Backend: BackendConfig{Type: "github", Github: GithubConfig{
+				Repo: "owner/repo", MasterPassword: "p", Auth: GithubAuth{Type: "token"},
+			}}},
+			wantOK: true,
+		},
+		{
+			name:    "file without master password",
+			cfg:     &Config{Backend: BackendConfig{Type: "file"}},
+			wantErr: ErrMissingFileMaster,
+		},
+		{
+			name:   "file happy path",
+			cfg:    &Config{Backend: BackendConfig{Type: "file", File: FileConfig{MasterPassword: "p"}}},
+			wantOK: true,
+		},
+		{
+			name:    "vault without address",
+			cfg:     &Config{Backend: BackendConfig{Type: "vault"}},
+			wantErr: ErrMissingVaultAddress,
+		},
+		{
+			name: "vault with bad auth.type",
+			cfg: &Config{Backend: BackendConfig{Type: "vault", Vault: VaultConfig{
+				Address: "http://x", Auth: VaultAuth{Type: "kerberos"},
+			}}},
+			wantErr: ErrUnknownVaultAuthType,
+		},
+		{
+			name:   "vault happy path",
+			cfg:    &Config{Backend: BackendConfig{Type: "vault", Vault: VaultConfig{Address: "http://x"}}},
+			wantOK: true,
+		},
+		{
+			name:   "mock happy path",
+			cfg:    &Config{Backend: BackendConfig{Type: "mock"}},
+			wantOK: true,
+		},
+		{
+			name: "lockbox auth.type defaults to auto",
+			cfg: &Config{Backend: BackendConfig{Type: "lockbox", Lockbox: LockboxConfig{
+				FolderID: "f",
+			}}},
+			wantOK: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := Validate(tc.cfg)
+			if tc.wantOK {
+				if err != nil {
+					t.Fatalf("expected ok, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error %v, got nil", tc.wantErr)
+			}
+			if !strings.Contains(err.Error(), tc.wantErr.Error()) {
+				t.Fatalf("expected error containing %v, got %v", tc.wantErr, err)
+			}
+		})
+	}
+
+	// Lockbox auth.type=auto is filled in by Validate.
+	cfg := &Config{Backend: BackendConfig{Type: "lockbox", Lockbox: LockboxConfig{FolderID: "f"}}}
+	_ = Validate(cfg)
+	if cfg.Backend.Lockbox.Auth.Type != "auto" {
+		t.Fatalf("Validate didn't default lockbox auth.type to 'auto': %q", cfg.Backend.Lockbox.Auth.Type)
+	}
+}
+
 func TestValidate(t *testing.T) {
 	// Missing backend type.
 	err := Validate(&Config{})
@@ -229,7 +332,7 @@ func TestValidate(t *testing.T) {
 	if err := Validate(cfg); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if cfg.Backend.Lockbox.Auth.Type != "oauth" {
+	if cfg.Backend.Lockbox.Auth.Type != "auto" {
 		t.Fatalf("default auth.type: %q", cfg.Backend.Lockbox.Auth.Type)
 	}
 
