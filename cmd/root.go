@@ -29,6 +29,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/jtprogru/jtsekret/internal/audit"
 )
 
 // LogLevel is the dynamic level shared with the slog handler set up in
@@ -41,6 +43,7 @@ var (
 	outputMode string
 	noCache    bool
 	debugMode  bool
+	noAudit    bool
 )
 
 var rootCmd = &cobra.Command{
@@ -63,6 +66,9 @@ Examples:
 			viper.Set("cache.enabled", false)
 		}
 		applyLogLevel()
+		if noAudit {
+			audit.Disable()
+		}
 		return nil
 	},
 }
@@ -84,6 +90,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&outputMode, "output", "plain", "output format: plain|table|json")
 	rootCmd.PersistentFlags().BoolVar(&noCache, "no-cache", false, "disable local cache")
 	rootCmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "enable debug logging")
+	rootCmd.PersistentFlags().BoolVar(&noAudit, "no-audit", false, "disable audit logging for this invocation")
 
 	viper.SetEnvPrefix("JTSEKRET")
 	_ = viper.BindPFlag("output.format", rootCmd.PersistentFlags().Lookup("output"))

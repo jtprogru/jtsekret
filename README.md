@@ -240,12 +240,35 @@ jtsekret migrate --target-config <path> --dry-run          # показать п
 jtsekret migrate --target-config <path> --only n1,n2       # только эти секреты
 ```
 
+### Ротация мастер-пароля
+
+```
+jtsekret rotate-master                       # github/file: расшифровать всё текущим паролем
+                                              # и пере-зашифровать новым (с новым per-secret salt).
+                                              # lockbox/vault не имеют локального мастер-пароля,
+                                              # команда отклоняется.
+```
+
+Текущий пароль берётся из `JTSEKRET_<BACKEND>_MASTER_PASSWORD` (с fallback'ом на `JTSEKRET_CACHE_MASTER_PASSWORD`); новый запрашивается интерактивно (дважды для подтверждения). После успешной ротации обновите env-переменную в шелле/keychain.
+
+### Audit-лог
+
+Каждый `get/create/set/delete/dump/exec` пишет одну JSON-строку в локальный append-only лог. Значения секретов **не пишутся** — только action/backend/secret/key/result. По умолчанию путь — `$XDG_STATE_HOME/jtsekret/audit.log` (fallback `~/.local/state/jtsekret/audit.log`); можно переопределить через `JTSEKRET_AUDIT_LOG`.
+
+```
+jtsekret audit show                          # последние 20 записей в табличном виде
+jtsekret audit show -n 100 --json            # 100 записей в формате JSON Lines
+jtsekret audit path                          # путь к log-файлу
+jtsekret --no-audit get my-token --key tok   # отключить аудит на одну команду
+```
+
 ### Глобальные флаги
 
 ```
 --config <path>            путь к файлу конфига
 --output plain|table|json  формат вывода (по умолчанию авто-детект)
 --no-cache                 не использовать кэш для этой команды
+--no-audit                 не писать в audit-лог для этой команды
 --debug                    debug-логирование на stderr
 ```
 

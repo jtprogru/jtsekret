@@ -27,6 +27,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/jtprogru/jtsekret/internal/audit"
 	"github.com/jtprogru/jtsekret/internal/backend"
 	"github.com/jtprogru/jtsekret/internal/config"
 )
@@ -85,6 +86,7 @@ func runSet(cmd *cobra.Command, args []string) error {
 	}
 
 	err = b.AddVersion(ctx, name, entries)
+	_ = audit.FromError("set", cfg.Backend.Type, name, key, err)
 	if err != nil {
 		return fmt.Errorf("add version: %w", err)
 	}

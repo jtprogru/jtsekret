@@ -225,6 +225,77 @@ func (b *Backend) AddVersion(ctx context.Context, nameOrID string, entries []bac
 	return b.writeSecret(meta, entries)
 }
 
+// RotateMasterPassword re-encrypts every secret in the store under
+// newPassword. Each secret gets a fresh salt so the resulting ciphertext
+// shares nothing with the old key. The operation is best-effort
+// per-secret: if one fails halfway, every secret rewritten before the
+// failure is already under newPassword (their meta.Salt has changed),
+// so the rotation is forward-only — there's no rollback to the old
+// password without restoring from a backup.
+func (b *Backend) RotateMasterPassword(ctx context.Context, newPassword string) error {
+	if newPassword == "" {
+		return errors.New("new master password is empty")
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	dir := filepath.Join(b.root, secretsDir)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			b.masterPass = newPassword
+			return nil
+		}
+		return fmt.Errorf("read store dir: %w", err)
+	}
+	// Decrypt under the original password (captured here), write under
+	// the new one. Writes happen via b.writeSecret which reads
+	// b.masterPass — flip it once and never flip back; the loop's
+	// decrypt step uses the local oldPass variable, not the field.
+	oldPass := b.masterPass
+	b.masterPass = newPassword
+	rotated := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), metaSuffix) {
+			continue
+		}
+		name := strings.TrimSuffix(e.Name(), metaSuffix)
+		meta, err := b.readMeta(name)
+		if err != nil {
+			return fmt.Errorf("rotate %q: read meta: %w (rotated %d before failure)", name, err, rotated)
+		}
+		blob, err := os.ReadFile(filepath.Join(b.root, secretsDir, name+encSuffix))
+		if err != nil {
+			return fmt.Errorf("rotate %q: read enc: %w", name, err)
+		}
+		oldSalt, err := base64.StdEncoding.DecodeString(meta.Salt)
+		if err != nil {
+			return fmt.Errorf("rotate %q: decode salt: %w", name, err)
+		}
+		oldKey, err := crypto.DeriveKey(oldPass, oldSalt)
+		if err != nil {
+			return fmt.Errorf("rotate %q: derive old key: %w", name, err)
+		}
+		plaintext, err := crypto.Decrypt(blob, oldKey)
+		if err != nil {
+			return fmt.Errorf("rotate %q: decrypt with current password: %w", name, err)
+		}
+		var p entriesPayload
+		if err := json.Unmarshal(plaintext, &p); err != nil {
+			return fmt.Errorf("rotate %q: unmarshal: %w", name, err)
+		}
+		decoded := make([]backend.Entry, len(p.Entries))
+		for i, e := range p.Entries {
+			decoded[i] = backend.Entry{Key: e.Key, Value: e.Value}
+		}
+		if err := b.writeSecret(meta, decoded); err != nil {
+			return fmt.Errorf("rotate %q: rewrite under new password: %w (rotated %d before failure)", name, err, rotated)
+		}
+		rotated++
+	}
+	return nil
+}
+
 func (b *Backend) DeleteSecret(ctx context.Context, nameOrID string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()

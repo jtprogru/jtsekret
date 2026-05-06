@@ -66,6 +66,16 @@ type Syncer interface {
 	Sync(ctx context.Context) error
 }
 
+// MasterPasswordRotator is implemented by backends that hold ciphertext
+// at-rest under a user-supplied master password (github, file). Calling
+// Rotate decrypts every secret under the current password and re-writes
+// it under newPassword with a fresh per-secret salt. Backends that lean
+// on a cloud KMS (lockbox, vault) don't implement this — there's no
+// local master to rotate.
+type MasterPasswordRotator interface {
+	RotateMasterPassword(ctx context.Context, newPassword string) error
+}
+
 type Factory func(cfg map[string]interface{}) (Backend, error)
 
 var registry = map[string]Factory{}

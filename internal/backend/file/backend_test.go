@@ -99,6 +99,55 @@ func TestFile_DuplicateCreate(t *testing.T) {
 	}
 }
 
+func TestFile_RotateMasterPassword(t *testing.T) {
+	ctx := context.Background()
+	b := newBackend(t)
+
+	// Plant 3 secrets under the original password.
+	for i, name := range []string{"a", "b", "c"} {
+		_, err := b.CreateSecret(ctx, name, "", []backend.Entry{
+			{Key: "k", Value: []byte{byte('1' + i)}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := b.RotateMasterPassword(ctx, "new-pass"); err != nil {
+		t.Fatalf("rotate: %v", err)
+	}
+
+	// Same backend instance: still works (b.masterPass updated).
+	for i, name := range []string{"a", "b", "c"} {
+		p, err := b.GetPayload(ctx, name, "")
+		if err != nil {
+			t.Fatalf("get %s after rotate: %v", name, err)
+		}
+		if string(p.Entries[0].Value) != string([]byte{byte('1' + i)}) {
+			t.Fatalf("payload mismatch for %s", name)
+		}
+	}
+
+	// Old password no longer works on a fresh backend pointed at the same root.
+	old, err := New(map[string]interface{}{"path": b.root, "master_password": testPassword})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := old.GetPayload(ctx, "a", ""); err == nil {
+		t.Fatal("expected old password to fail GCM auth after rotation")
+	}
+
+	// New password works on a fresh backend.
+	fresh, err := New(map[string]interface{}{"path": b.root, "master_password": "new-pass"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := fresh.GetPayload(ctx, "a", "")
+	if err != nil || string(p.Entries[0].Value) != "1" {
+		t.Fatalf("fresh backend with new password: %v / %+v", err, p)
+	}
+}
+
 func TestFile_BinaryValue(t *testing.T) {
 	ctx := context.Background()
 	b := newBackend(t)

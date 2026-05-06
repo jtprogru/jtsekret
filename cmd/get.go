@@ -33,6 +33,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/jtprogru/jtsekret/internal/audit"
 	"github.com/jtprogru/jtsekret/internal/backend"
 	"github.com/jtprogru/jtsekret/internal/cache"
 	clip "github.com/jtprogru/jtsekret/internal/clipboard"
@@ -151,6 +152,7 @@ func runGet(cmd *cobra.Command, args []string) error {
 
 	if payload == nil {
 		payload, err = b.GetPayload(ctx, name, getVersion)
+		_ = audit.FromError("get", cfg.Backend.Type, name, getKey, err)
 		if err != nil {
 			return fmt.Errorf("get payload: %w", err)
 		}

@@ -501,6 +501,76 @@ func (b *Backend) AddVersion(ctx context.Context, nameOrID string, entries []bac
 	return b.commitAndPush(fmt.Sprintf("jtsekret: update %s -> v%s", nameOrID, meta.VersionID), metaPath, encPath)
 }
 
+// RotateMasterPassword re-encrypts every secret in the working copy
+// under newPassword and commits the change as a single atomic commit.
+// The working copy ends up with all <name>.enc files holding ciphertext
+// derived from the new password and a fresh per-secret salt; <name>.meta.json
+// has the matching salt update. On any per-secret failure the partial
+// state is left for the user to inspect — git makes it easy to revert.
+func (b *Backend) RotateMasterPassword(ctx context.Context, newPassword string) error {
+	if newPassword == "" {
+		return errors.New("new master password is empty")
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	dir := filepath.Join(b.localPath, secretsDir)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			b.masterPass = newPassword
+			return nil
+		}
+		return fmt.Errorf("read secrets dir: %w", err)
+	}
+	oldPass := b.masterPass
+	b.masterPass = newPassword
+	changedPaths := make([]string, 0, 2*len(entries))
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), metaSuffix) {
+			continue
+		}
+		name := strings.TrimSuffix(e.Name(), metaSuffix)
+		meta, err := b.readMeta(name)
+		if err != nil {
+			return fmt.Errorf("rotate %q: read meta: %w", name, err)
+		}
+		blob, err := os.ReadFile(filepath.Join(b.localPath, secretsDir, name+encSuffix))
+		if err != nil {
+			return fmt.Errorf("rotate %q: read enc: %w", name, err)
+		}
+		oldSalt, err := base64.StdEncoding.DecodeString(meta.Salt)
+		if err != nil {
+			return fmt.Errorf("rotate %q: decode salt: %w", name, err)
+		}
+		oldKey, err := crypto.DeriveKey(oldPass, oldSalt)
+		if err != nil {
+			return fmt.Errorf("rotate %q: derive old key: %w", name, err)
+		}
+		plaintext, err := crypto.Decrypt(blob, oldKey)
+		if err != nil {
+			return fmt.Errorf("rotate %q: decrypt with current password: %w", name, err)
+		}
+		var p entriesPayload
+		if err := json.Unmarshal(plaintext, &p); err != nil {
+			return fmt.Errorf("rotate %q: unmarshal: %w", name, err)
+		}
+		decoded := make([]backend.Entry, len(p.Entries))
+		for i, e := range p.Entries {
+			decoded[i] = backend.Entry{Key: e.Key, Value: e.Value}
+		}
+		metaPath, encPath, err := b.writeSecret(meta, decoded)
+		if err != nil {
+			return fmt.Errorf("rotate %q: rewrite under new password: %w", name, err)
+		}
+		changedPaths = append(changedPaths, metaPath, encPath)
+	}
+	if len(changedPaths) == 0 {
+		return nil
+	}
+	return b.commitAndPush("jtsekret: rotate master password", changedPaths...)
+}
+
 func (b *Backend) DeleteSecret(ctx context.Context, nameOrID string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()

@@ -31,6 +31,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/jtprogru/jtsekret/internal/audit"
 	"github.com/jtprogru/jtsekret/internal/config"
 )
 
@@ -85,6 +86,7 @@ func runExec(cmd *cobra.Command, args []string) error {
 	}
 
 	payload, err := b.GetPayload(ctx, execSecret, "")
+	_ = audit.FromError("exec", cfg.Backend.Type, execSecret, execKey, err)
 	if err != nil {
 		return fmt.Errorf("get payload: %w", err)
 	}

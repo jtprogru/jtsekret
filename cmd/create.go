@@ -28,6 +28,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/jtprogru/jtsekret/internal/audit"
 	"github.com/jtprogru/jtsekret/internal/backend"
 	"github.com/jtprogru/jtsekret/internal/config"
 	"github.com/jtprogru/jtsekret/internal/crypto"
@@ -91,6 +92,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	secret, err := b.CreateSecret(ctx, name, createDesc, entries)
+	_ = audit.FromError("create", cfg.Backend.Type, name, createKey, err)
 	if err != nil {
 		return fmt.Errorf("create secret: %w", err)
 	}

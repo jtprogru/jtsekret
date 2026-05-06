@@ -32,6 +32,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/jtprogru/jtsekret/internal/audit"
 	"github.com/jtprogru/jtsekret/internal/backend"
 	"github.com/jtprogru/jtsekret/internal/cache"
 	"github.com/jtprogru/jtsekret/internal/config"
@@ -134,6 +135,7 @@ func runDump(cmd *cobra.Command, args []string) error {
 
 	if payload == nil {
 		payload, err = b.GetPayload(ctx, name, "")
+		_ = audit.FromError("dump", cfg.Backend.Type, name, dumpKey, err)
 		if err != nil {
 			return fmt.Errorf("get payload: %w", err)
 		}

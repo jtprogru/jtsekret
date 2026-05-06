@@ -28,6 +28,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/jtprogru/jtsekret/internal/audit"
 	"github.com/jtprogru/jtsekret/internal/config"
 )
 
@@ -72,6 +73,7 @@ func runDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	err = b.DeleteSecret(ctx, name)
+	_ = audit.FromError("delete", cfg.Backend.Type, name, "", err)
 	if err != nil {
 		return fmt.Errorf("delete secret: %w", err)
 	}
