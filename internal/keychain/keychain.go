@@ -65,6 +65,10 @@ func Available() bool {
 	return err == nil
 }
 
+// errSecItemNotFound is the macOS Security framework status code (decimal
+// 44) returned by the `security` CLI when an entry doesn't exist.
+const errSecItemNotFound = 44
+
 // Get fetches the password for slot from the user's Keychain.
 func Get(ctx context.Context, slot string) (string, error) {
 	if runtime.GOOS != "darwin" {
@@ -79,16 +83,8 @@ func Get(ctx context.Context, slot string) (string, error) {
 		"-w") // -w prints just the password
 	out, err := cmd.Output()
 	if err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			// `security` returns 44 (errSecItemNotFound) when the item
-			// doesn't exist; surface a friendly error so callers can
-			// distinguish "missing" from "broken keychain".
-			stderr := strings.TrimSpace(string(ee.Stderr))
-			if strings.Contains(stderr, "could not be found") {
-				return "", ErrNotFound
-			}
-			return "", fmt.Errorf("keychain get %q: %s", slot, stderr)
+		if isNotFound(err) {
+			return "", ErrNotFound
 		}
 		return "", fmt.Errorf("keychain get %q: %w", slot, err)
 	}
@@ -131,17 +127,31 @@ func Delete(ctx context.Context, slot string) error {
 		"-a", slot,
 		"-s", Service)
 	if err := cmd.Run(); err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			stderr := strings.TrimSpace(string(ee.Stderr))
-			if strings.Contains(stderr, "could not be found") {
-				return ErrNotFound
-			}
-			return fmt.Errorf("keychain delete %q: %s", slot, stderr)
+		if isNotFound(err) {
+			return ErrNotFound
 		}
 		return fmt.Errorf("keychain delete %q: %w", slot, err)
 	}
 	return nil
+}
+
+// isNotFound reports whether err from a `security` invocation indicates
+// errSecItemNotFound. The CLI emits the relevant status either as exit
+// code 44 (the canonical errSecItemNotFound) or as a stderr string
+// containing "could not be found" — we accept both, since the exact
+// surface varies between macOS versions.
+func isNotFound(err error) bool {
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) {
+		return false
+	}
+	if ee.ExitCode() == errSecItemNotFound {
+		return true
+	}
+	if strings.Contains(string(ee.Stderr), "could not be found") {
+		return true
+	}
+	return false
 }
 
 // List returns the subset of KnownSlots that currently exist in the
