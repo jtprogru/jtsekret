@@ -23,8 +23,11 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -32,23 +35,61 @@ import (
 
 	"github.com/jtprogru/jtsekret/internal/backend"
 	"github.com/jtprogru/jtsekret/internal/cache"
+	clip "github.com/jtprogru/jtsekret/internal/clipboard"
 	"github.com/jtprogru/jtsekret/internal/config"
 	"github.com/jtprogru/jtsekret/internal/domain"
 	"github.com/jtprogru/jtsekret/internal/output"
 )
 
+// copyToClipboardWithAutoClear writes value to the OS clipboard and, if
+// clearAfter > 0, blocks for that many seconds and then replaces it.
+// Ctrl+C cancels the wait but leaves the value in place — same as the
+// standard `pass -c` behaviour.
+func copyToClipboardWithAutoClear(ctx context.Context, key string, value []byte, clearAfter int) error {
+	if err := clip.Copy(ctx, value); err != nil {
+		return fmt.Errorf("clipboard copy: %w", err)
+	}
+	if clearAfter <= 0 {
+		fmt.Fprintf(os.Stderr, "Copied %q to clipboard. Auto-clear disabled (--copy-clear-after=0)\n", key)
+		return nil
+	}
+	fmt.Fprintf(os.Stderr, "Copied %q to clipboard. Clearing in %ds (Ctrl+C to keep)\n", key, clearAfter)
+
+	timer := time.NewTimer(time.Duration(clearAfter) * time.Second)
+	defer timer.Stop()
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sig)
+
+	select {
+	case <-timer.C:
+		clearCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		if err := clip.Clear(clearCtx); err != nil {
+			return fmt.Errorf("clipboard clear: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, "Clipboard cleared.")
+	case <-sig:
+		fmt.Fprintln(os.Stderr, "Cancelled — clipboard left intact.")
+	}
+	return nil
+}
+
 var (
-	getKey       string
-	getVersion   string
-	getOutputRaw bool
-	getNoCache   bool
+	getKey            string
+	getVersion        string
+	getOutputRaw      bool
+	getNoCache        bool
+	getCopy           bool
+	getCopyClearAfter int
 )
 
 var getCmd = &cobra.Command{
-	Use:   "get <name>",
-	Short: "Get a secret or specific key",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runGet,
+	Use:               "get <name>",
+	Short:             "Get a secret or specific key",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: secretNameCompletion,
+	RunE:              runGet,
 }
 
 func init() {
@@ -56,6 +97,8 @@ func init() {
 	getCmd.Flags().StringVar(&getVersion, "version", "", "specific version ID")
 	getCmd.Flags().BoolVar(&getOutputRaw, "raw", false, "output raw value without key name")
 	getCmd.Flags().BoolVar(&getNoCache, "no-cache", false, "skip cache and fetch from backend")
+	getCmd.Flags().BoolVar(&getCopy, "copy", false, "copy the value to the system clipboard instead of printing it (requires --key)")
+	getCmd.Flags().IntVar(&getCopyClearAfter, "copy-clear-after", 30, "seconds to keep value on the clipboard before clearing (0 = never clear)")
 
 	rootCmd.AddCommand(getCmd)
 }
@@ -132,6 +175,9 @@ func runGet(cmd *cobra.Command, args []string) error {
 	if getKey != "" {
 		for _, e := range payload.Entries {
 			if e.Key == getKey {
+				if getCopy {
+					return copyToClipboardWithAutoClear(ctx, e.Key, e.Value, getCopyClearAfter)
+				}
 				if getOutputRaw {
 					if _, err := os.Stdout.Write(e.Value); err != nil {
 						return fmt.Errorf("write value: %w", err)
@@ -142,6 +188,9 @@ func runGet(cmd *cobra.Command, args []string) error {
 			}
 		}
 		return fmt.Errorf("key %q not found", getKey)
+	}
+	if getCopy {
+		return errors.New("--copy requires --key (refusing to copy multiple entries to the clipboard)")
 	}
 
 	if getOutputRaw {

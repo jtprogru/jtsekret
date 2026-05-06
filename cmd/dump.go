@@ -65,8 +65,9 @@ Examples:
 
   # Print a single entry to stdout
   jtsekret dump ssh-keys --key id_rsa --output -`,
-	Args: cobra.ExactArgs(1),
-	RunE: runDump,
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: secretNameCompletion,
+	RunE:              runDump,
 }
 
 func init() {

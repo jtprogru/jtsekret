@@ -34,10 +34,11 @@ import (
 var deleteForce bool
 
 var deleteCmd = &cobra.Command{
-	Use:   "delete <name>",
-	Short: "Delete a secret",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runDelete,
+	Use:               "delete <name>",
+	Short:             "Delete a secret",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: secretNameCompletion,
+	RunE:              runDelete,
 }
 
 func init() {
@@ -74,6 +75,7 @@ func runDelete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("delete secret: %w", err)
 	}
+	invalidateCompletionCache()
 
 	fmt.Printf("Deleted secret %q\n", name)
 	return nil

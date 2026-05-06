@@ -94,6 +94,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("create secret: %w", err)
 	}
+	invalidateCompletionCache()
 
 	fmt.Printf("Created secret %q (ID: %s)\n", secret.Name, secret.ID)
 	return nil

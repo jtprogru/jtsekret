@@ -35,7 +35,13 @@ var setCmd = &cobra.Command{
 	Use:   "set <name> <key> <value>",
 	Short: "Add or update a key in a secret",
 	Args:  cobra.ExactArgs(3),
-	RunE:  runSet,
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return secretNameCompletion(cmd, args, toComplete)
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	},
+	RunE: runSet,
 }
 
 func init() {

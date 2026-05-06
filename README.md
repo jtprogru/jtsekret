@@ -165,11 +165,20 @@ backend:
 
 ```
 jtsekret list                                # список всех секретов
+jtsekret search <pattern>                    # секреты, чьё имя содержит pattern (case-insensitive)
+jtsekret search <pattern> --include-keys     # также матчить по именам entry-ключей
+
 jtsekret get <name>                          # все entries секрета (key → value)
 jtsekret get <name> --key <key>              # одно поле в формате "key: value"
 jtsekret get <name> --key <key> --raw        # только значение, без декораций (для пайпа)
+jtsekret get <name> --key <key> --copy       # копировать значение в буфер обмена и
+                                             # очистить через 30s (--copy-clear-after N)
 jtsekret get <name> --version <id>           # читать конкретную версию (если бэкенд её хранит)
 ```
+
+`<name>` поддерживает tab-completion в `get`/`set`/`delete`/`dump`/`exec --secret`
+(имена кэшируются на 5 минут в `~/.cache/jtsekret/completion.json`; create/set/delete
+сбрасывают кеш автоматически).
 
 ### Запись
 

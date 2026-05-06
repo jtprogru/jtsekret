@@ -62,6 +62,7 @@ func init() {
 
 	_ = execCmd.MarkFlagRequired("secret")
 	_ = execCmd.MarkFlagRequired("key")
+	_ = execCmd.RegisterFlagCompletionFunc("secret", secretNameCompletion)
 
 	rootCmd.AddCommand(execCmd)
 }
