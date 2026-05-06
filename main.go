@@ -33,6 +33,7 @@ import (
 	_ "github.com/jtprogru/jtsekret/internal/backend/file"
 	_ "github.com/jtprogru/jtsekret/internal/backend/githubrepo"
 	_ "github.com/jtprogru/jtsekret/internal/backend/lockbox"
+	_ "github.com/jtprogru/jtsekret/internal/backend/vault"
 )
 
 var (

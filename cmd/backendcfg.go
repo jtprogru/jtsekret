@@ -74,6 +74,25 @@ func backendConfigMap(cfg *config.Config) (map[string]interface{}, error) {
 			"path":            cfg.Backend.File.GetPath(),
 			"master_password": cfg.Backend.File.MasterPassword,
 		}, nil
+	case "vault":
+		return map[string]interface{}{
+			"address": cfg.Backend.Vault.Address,
+			"mount":   cfg.Backend.Vault.Mount,
+			"prefix":  cfg.Backend.Vault.Prefix,
+			"auth": map[string]interface{}{
+				"type":      cfg.Backend.Vault.Auth.Type,
+				"path":      cfg.Backend.Vault.Auth.Path,
+				"token":     cfg.Backend.Vault.Auth.Token,
+				"role_id":   cfg.Backend.Vault.Auth.RoleID,
+				"secret_id": cfg.Backend.Vault.Auth.SecretID,
+				"username":  cfg.Backend.Vault.Auth.Username,
+				"password":  cfg.Backend.Vault.Auth.Password,
+			},
+			"tls": map[string]interface{}{
+				"ca_cert":  cfg.Backend.Vault.TLS.CACert,
+				"insecure": cfg.Backend.Vault.TLS.Insecure,
+			},
+		}, nil
 	case "mock":
 		return map[string]interface{}{}, nil
 	case "":

@@ -4,7 +4,7 @@ CLI-утилита для централизованного и безопасн
 
 Абстрагирует бэкенд хранилища за единым интерфейсом, реализует локальный шифрованный кэш и позволяет передавать секреты в другие процессы через Unix-пайп.
 
-**Поддерживаемые бэкенды:** Yandex Cloud Lockbox, GitHub private repo, локальный `file` (полностью офлайн)
+**Поддерживаемые бэкенды:** Yandex Cloud Lockbox, GitHub private repo, HashiCorp Vault (KV v2), локальный `file` (полностью офлайн)
 
 ## Модель данных
 
@@ -142,6 +142,32 @@ backend:
 ```
 
 Мастер-пароль: `JTSEKRET_GITHUB_MASTER_PASSWORD` (fallback — `JTSEKRET_CACHE_MASTER_PASSWORD`). Токен GitHub: `JTSEKRET_GITHUB_TOKEN` (PAT с `contents:write` на репо).
+
+### HashiCorp Vault backend
+
+Поверх KV v2 secret engine. Каждый секрет → `<mount>/data/<prefix>/<name>`, его entries — это ключи в `data`. Версионирование берёт на себя сам Vault: `AddVersion` — это просто новый `Put`. Значения должны быть **UTF-8** — для бинарных данных используйте github/file (Vault хранит payload как JSON-строки).
+
+```yaml
+backend:
+  type: vault
+  vault:
+    address: "https://vault.example.com:8200"   # или env VAULT_ADDR
+    mount: "secret"
+    prefix: "personal/"
+    auth:
+      type: token              # token | approle | userpass
+      # token: ""              # prefer VAULT_TOKEN env var
+```
+
+Auth-методы:
+
+| `auth.type` | Поля | Env-перегрузки |
+|---|---|---|
+| `token` | `token` | `VAULT_TOKEN` |
+| `approle` | `role_id`, `secret_id`, `path` (default `approle`) | — |
+| `userpass` | `username`, `password`, `path` (default `userpass`) | — |
+
+TLS: `tls.ca_cert` (PEM) для self-hosted CA; `tls.insecure: true` отключает проверку сертификата (только для отладки).
 
 ### Локальный `file` backend
 

@@ -42,12 +42,36 @@ type BackendConfig struct {
 	Lockbox LockboxConfig  `mapstructure:"lockbox"`
 	Github  GithubConfig   `mapstructure:"github"`
 	File    FileConfig     `mapstructure:"file"`
+	Vault   VaultConfig    `mapstructure:"vault"`
 	Custom  map[string]any `mapstructure:",remain"`
 }
 
 type FileConfig struct {
 	Path           string `mapstructure:"path"`
 	MasterPassword string `mapstructure:"-"`
+}
+
+type VaultConfig struct {
+	Address string         `mapstructure:"address"`
+	Mount   string         `mapstructure:"mount"`
+	Prefix  string         `mapstructure:"prefix"`
+	Auth    VaultAuth      `mapstructure:"auth"`
+	TLS     VaultTLSConfig `mapstructure:"tls"`
+}
+
+type VaultAuth struct {
+	Type     string `mapstructure:"type"`
+	Path     string `mapstructure:"path"`
+	Token    string `mapstructure:"token"`
+	RoleID   string `mapstructure:"role_id"`
+	SecretID string `mapstructure:"secret_id"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+}
+
+type VaultTLSConfig struct {
+	CACert   string `mapstructure:"ca_cert"`
+	Insecure bool   `mapstructure:"insecure"`
 }
 
 type GithubConfig struct {
@@ -130,6 +154,13 @@ func loadFromViper(v *viper.Viper) (*Config, error) {
 	cfg.Backend.File.MasterPassword = os.Getenv("JTSEKRET_FILE_MASTER_PASSWORD")
 	if cfg.Backend.File.MasterPassword == "" {
 		cfg.Backend.File.MasterPassword = cfg.Cache.MasterPassword
+	}
+
+	if cfg.Backend.Vault.Address == "" {
+		cfg.Backend.Vault.Address = os.Getenv("VAULT_ADDR")
+	}
+	if cfg.Backend.Vault.Auth.Token == "" {
+		cfg.Backend.Vault.Auth.Token = os.Getenv("VAULT_TOKEN")
 	}
 
 	return cfg, nil

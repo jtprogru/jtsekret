@@ -5,7 +5,7 @@
 # Example: JTSEKRET_BACKEND_LOCKBOX_FOLDER_ID overrides backend.lockbox.folder_id
 
 backend:
-  # Backend type: github (default, personal-first), lockbox, file, mock.
+  # Backend type: github (default, personal-first), lockbox, vault, file, mock.
   type: github
 
   # ---------------------------------------------------------------------
@@ -60,6 +60,30 @@ backend:
   #     #       -> service-account key -> `yc iam create-token`. Recommended.
   #     # oauth | iam_token | service_account_key | instance_service_account
   #     type: auto
+
+  # ---------------------------------------------------------------------
+  # HashiCorp Vault — KV v2 secret engine. Each secret lands at
+  #   <mount>/data/<prefix>/<name>
+  # with its entries materialised as `data` keys. Vault handles versioning
+  # natively, so AddVersion just calls Put again.
+  #
+  # Values must be UTF-8 (jtsekret stores them as JSON strings); use the
+  # github or file backend for binary payloads.
+  # ---------------------------------------------------------------------
+  # vault:
+  #   address: "https://vault.example.com:8200"   # or env VAULT_ADDR
+  #   mount: "secret"
+  #   prefix: "personal/"
+  #   auth:
+  #     # token | approle | userpass
+  #     type: token
+  #     token: ""               # prefer VAULT_TOKEN env var
+  #     # role_id / secret_id   for type: approle
+  #     # username / password   for type: userpass
+  #     # path: ""              non-default mount path of the auth method
+  #   tls:
+  #     ca_cert: ""             # path to a PEM CA bundle
+  #     insecure: false         # set true to skip TLS verification (testing only)
 
   # ---------------------------------------------------------------------
   # Local file backend — fully offline encrypted-at-rest storage with the
