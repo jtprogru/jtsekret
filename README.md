@@ -6,32 +6,61 @@ CLI-утилита для централизованного и безопасн
 
 **Поддерживаемые бэкенды:** Yandex Cloud Lockbox, GitHub private repo (зашифрованные файлы в вашем приватном репозитории)
 
+## Модель данных
+
+Запоминается одна простая иерархия:
+
+```
+backend (где хранится)
+└── secret (контейнер по имени, например "my-api-token")
+    ├── entry: key="token"  → value=<bytes>
+    ├── entry: key="user"   → value=<bytes>
+    └── entry: key="…"      → value=<bytes>
+```
+
+- **secret** — именованный контейнер. Имя задаётся пользователем (`my-api-token`,
+  `prod-db`, …). У каждого секрета есть версия: при перезаписи payload Lockbox/github
+  заводит новую версию, старая остаётся.
+- **entry** — пара `key → value` внутри секрета. У одного секрета может быть много
+  entries: `username` + `password`, `token` + `refresh_token`, или один `id_rsa`.
+- Флаг **`--key <name>`** во всех командах выбирает одну entry внутри секрета.
+  Без `--key` команды работают со всеми entry секрета сразу.
+
 ## Установка
 
 ```bash
-git clone https://github.com/jtprogru/jtsekret
-cd jtsekret
-make install   # устанавливает в $GOPATH/bin
+brew tap jtprogru/tap
+brew install --cask jtsekret
+```
+
+Из исходников:
+
+```bash
+git clone https://github.com/jtprogru/jtsekret && cd jtsekret
+make build                 # бинарь в ./jtsekret
+go install ./...           # или установить в $GOBIN/$GOPATH/bin
 ```
 
 ## Быстрый старт
 
 ```bash
-# Создать конфиг
+# 1. Сгенерировать стартовый конфиг (бэкенд по умолчанию = github private repo)
 jtsekret config init
 
-# Отредактировать ~/.config/jtsekret/jtsekret.yaml — указать folder_id и тип аутентификации
+# 2a. Yandex Cloud Lockbox: разово авторизоваться через браузер
+jtsekret login yc          # обёртка над `yc init`; auth.type=auto подхватит
 
-# Проверить подключение
-YC_OAUTH_TOKEN=<token> jtsekret config health
+# 2b. GitHub repo: задать PAT и мастер-пароль
+export JTSEKRET_GITHUB_TOKEN=ghp_…
+export JTSEKRET_GITHUB_MASTER_PASSWORD='…'
 
-# Получить список секретов
-jtsekret list
+# 3. Создать секрет с одним полем
+jtsekret create my-api-token --key token --value 'abc-123'
 
-# Получить значение ключа
-jtsekret get my-api-token --key token
+# 4. Достать значение конкретного поля (--raw без декораций — для пайпов)
+jtsekret get my-api-token --key token --raw
 
-# Передать секрет в другой процесс через env-переменную
+# 5. Пробросить значение поля в дочерний процесс через env-переменную
 jtsekret exec --secret my-api-token --key token --env API_TOKEN -- curl https://api.example.com
 ```
 
@@ -116,44 +145,86 @@ backend:
 
 ## Команды
 
+> Везде ниже `<name>` — имя **секрета** (контейнер), а `<key>` — имя **entry**
+> (поля внутри секрета). См. раздел «Модель данных».
+
+### Чтение
+
 ```
-jtsekret list                            # список всех секретов
-jtsekret get <name>                      # получить все ключи секрета
-jtsekret get <name> --key <key>          # получить конкретный ключ
-jtsekret get <name> --key <key> --raw    # только значение (для пайпа)
-jtsekret set <name> <key> <value>        # добавить/обновить ключ
-jtsekret create <name>                   # создать новый секрет
-jtsekret delete <name>                   # удалить секрет
+jtsekret list                                # список всех секретов
+jtsekret get <name>                          # все entries секрета (key → value)
+jtsekret get <name> --key <key>              # одно поле в формате "key: value"
+jtsekret get <name> --key <key> --raw        # только значение, без декораций (для пайпа)
+jtsekret get <name> --version <id>           # читать конкретную версию (если бэкенд её хранит)
+```
+
+### Запись
+
+```
+jtsekret create <name>                       # пустой секрет
+jtsekret create <name> --key <k> --value <v> # секрет с одним полем (если --value не задан — спросит интерактивно)
+jtsekret create <name> --desc "..." --label k=v --label k2=v2
+
+jtsekret set <name> <key> <value>            # добавить новое поле или перезаписать существующее
+                                              # (заводит новую версию секрета, старые поля сохраняются)
+
+jtsekret delete <name>                       # удалить секрет целиком (с подтверждением)
+```
+
+### Запуск процессов с секретами
+
+```
 jtsekret exec --secret <name> --key <key> --env VAR -- <cmd> [args]
+                # пробросить значение поля в env-переменную VAR дочернего процесса
+
 jtsekret exec --secret <name> --key <key> --stdin -- <cmd> [args]
+                # отправить значение поля на stdin дочернего процесса
+```
 
-jtsekret config init                     # создать файл конфига
-jtsekret config show                     # показать текущий конфиг
-jtsekret config validate                 # валидировать конфиг
-jtsekret config health                   # проверить подключение к бэкенду
+### Дамп в файлы
 
-jtsekret dump <name>                     # сохранить все ключи секрета в файлы (в текущую папку)
-jtsekret dump <name> --dir ~/.ssh        # сохранить в указанную директорию
-jtsekret dump <name> --key id_rsa --output ~/.ssh/id_rsa  # конкретный ключ в конкретный файл
-jtsekret dump <name> --key id_rsa --output -  # вывести в stdout
+```
+jtsekret dump <name>                         # все поля секрета → файлы <key> в текущей папке
+jtsekret dump <name> --dir ~/.ssh            # все поля → файлы в ~/.ssh
+jtsekret dump <name> --key id_rsa --output ~/.ssh/id_rsa   # одно поле в конкретный файл
+jtsekret dump <name> --key id_rsa --output -               # одно поле в stdout
+```
 
-jtsekret cache status                    # статус кэша
-jtsekret cache clear                     # очистить кэш
+### Конфиг и здоровье
 
-jtsekret sync                            # явный pull+push (для github backend; no-op для lockbox)
-jtsekret migrate --target-config <path>  # скопировать все секреты в другой бэкенд
-jtsekret migrate --target-config <path> --update           # перезаписать существующие
+```
+jtsekret config init                         # создать файл конфига
+jtsekret config show                         # показать текущий конфиг
+jtsekret config validate                     # валидировать конфиг
+jtsekret config health                       # проверить подключение к бэкенду
+jtsekret login yc                            # запустить yc init (браузерная YC-аутентификация)
+```
+
+### Кэш
+
+```
+jtsekret cache status                        # статус кэша
+jtsekret cache clear                         # очистить кэш
+```
+
+### Sync и миграция между бэкендами
+
+```
+jtsekret sync                                # явный pull+push (актуально для github; no-op для lockbox)
+
+jtsekret migrate --target-config <path>      # скопировать все секреты в бэкенд из второго конфиг-файла
+jtsekret migrate --target-config <path> --update           # перезаписать существующие в target
 jtsekret migrate --target-config <path> --dry-run          # показать план без записи
-jtsekret migrate --target-config <path> --only name1,name2 # только эти секреты
+jtsekret migrate --target-config <path> --only n1,n2       # только эти секреты
 ```
 
-Глобальные флаги:
+### Глобальные флаги
 
 ```
---config <path>        путь к файлу конфига
---output plain|table|json  формат вывода
---no-cache             не использовать кэш
---debug                включить debug-логирование
+--config <path>            путь к файлу конфига
+--output plain|table|json  формат вывода (по умолчанию авто-детект)
+--no-cache                 не использовать кэш для этой команды
+--debug                    debug-логирование на stderr
 ```
 
 ## Кэш
