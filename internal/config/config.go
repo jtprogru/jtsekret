@@ -41,7 +41,13 @@ type BackendConfig struct {
 	Type    string         `mapstructure:"type"`
 	Lockbox LockboxConfig  `mapstructure:"lockbox"`
 	Github  GithubConfig   `mapstructure:"github"`
+	File    FileConfig     `mapstructure:"file"`
 	Custom  map[string]any `mapstructure:",remain"`
+}
+
+type FileConfig struct {
+	Path           string `mapstructure:"path"`
+	MasterPassword string `mapstructure:"-"`
 }
 
 type GithubConfig struct {
@@ -121,7 +127,27 @@ func loadFromViper(v *viper.Viper) (*Config, error) {
 		cfg.Backend.Github.Auth.Token = os.Getenv("JTSEKRET_GITHUB_TOKEN")
 	}
 
+	cfg.Backend.File.MasterPassword = os.Getenv("JTSEKRET_FILE_MASTER_PASSWORD")
+	if cfg.Backend.File.MasterPassword == "" {
+		cfg.Backend.File.MasterPassword = cfg.Cache.MasterPassword
+	}
+
 	return cfg, nil
+}
+
+func (c *FileConfig) GetPath() string {
+	p := c.Path
+	if p == "" {
+		p = "~/.local/share/jtsekret/store"
+	}
+	if strings.HasPrefix(p, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return p
+		}
+		return filepath.Join(home, strings.TrimPrefix(p, "~"))
+	}
+	return p
 }
 
 func (c *GithubConfig) GetLocalPath() string {

@@ -5,7 +5,7 @@
 # Example: JTSEKRET_BACKEND_LOCKBOX_FOLDER_ID overrides backend.lockbox.folder_id
 
 backend:
-  # Backend type: github (default, personal-first), lockbox, mock.
+  # Backend type: github (default, personal-first), lockbox, file, mock.
   type: github
 
   # ---------------------------------------------------------------------
@@ -60,6 +60,18 @@ backend:
   #     #       -> service-account key -> `yc iam create-token`. Recommended.
   #     # oauth | iam_token | service_account_key | instance_service_account
   #     type: auto
+
+  # ---------------------------------------------------------------------
+  # Local file backend — fully offline encrypted-at-rest storage with the
+  # same on-disk layout as the github backend, minus git. Useful for
+  # air-gapped use, single-device personal storage, and as a destination
+  # for `jtsekret migrate` exports/imports.
+  # ---------------------------------------------------------------------
+  # file:
+  #   path: "~/.local/share/jtsekret/store"   # secrets/<name>.{enc,meta.json} live here
+  #
+  # Master password is taken from JTSEKRET_FILE_MASTER_PASSWORD; if unset
+  # it falls back to JTSEKRET_CACHE_MASTER_PASSWORD.
 
 # Local encrypted cache configuration
 cache:

@@ -68,6 +68,11 @@ func backendConfigMap(cfg *config.Config) (map[string]interface{}, error) {
 				"ssh_key_password": cfg.Backend.Github.Auth.SSHKeyPassword,
 			},
 		}, nil
+	case "file":
+		return map[string]interface{}{
+			"path":            cfg.Backend.File.GetPath(),
+			"master_password": cfg.Backend.File.MasterPassword,
+		}, nil
 	case "mock":
 		return map[string]interface{}{}, nil
 	case "":

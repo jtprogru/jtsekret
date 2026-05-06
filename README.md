@@ -4,7 +4,7 @@ CLI-утилита для централизованного и безопасн
 
 Абстрагирует бэкенд хранилища за единым интерфейсом, реализует локальный шифрованный кэш и позволяет передавать секреты в другие процессы через Unix-пайп.
 
-**Поддерживаемые бэкенды:** Yandex Cloud Lockbox, GitHub private repo (зашифрованные файлы в вашем приватном репозитории)
+**Поддерживаемые бэкенды:** Yandex Cloud Lockbox, GitHub private repo, локальный `file` (полностью офлайн)
 
 ## Модель данных
 
@@ -142,6 +142,19 @@ backend:
 ```
 
 Мастер-пароль: `JTSEKRET_GITHUB_MASTER_PASSWORD` (fallback — `JTSEKRET_CACHE_MASTER_PASSWORD`). Токен GitHub: `JTSEKRET_GITHUB_TOKEN` (PAT с `contents:write` на репо).
+
+### Локальный `file` backend
+
+Полностью офлайн: на диске лежит та же раскладка, что у github-бэкенда (`<root>/secrets/<name>.{enc,meta.json}`), без git-слоя. Удобен для air-gapped-сценариев и как целевой бэкенд для `jtsekret migrate` (экспорт/импорт зашифрованного blob).
+
+```yaml
+backend:
+  type: file
+  file:
+    path: "~/.local/share/jtsekret/store"
+```
+
+Мастер-пароль: `JTSEKRET_FILE_MASTER_PASSWORD` (fallback — `JTSEKRET_CACHE_MASTER_PASSWORD`).
 
 ## Команды
 
