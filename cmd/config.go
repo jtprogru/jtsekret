@@ -85,18 +85,30 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 	}
 
 	exampleConfig := `backend:
-  type: lockbox
-  lockbox:
-    folder_id: ""
-    # auth.type options:
-    #   oauth               — permanent OAuth token, env: YC_OAUTH_TOKEN
-    #   iam_token           — short-lived IAM token, env: YC_IAM_TOKEN (yc iam create-token)
-    #   service_account_key — SA key file, env: YC_SERVICE_ACCOUNT_KEY_FILE
-    #   instance_service_account — no credentials, uses VM metadata service
+  # github (default, personal-first), lockbox, mock
+  type: github
+
+  # Personal-first storage: your private GitHub repo, AES-256-GCM at rest.
+  github:
+    repo: "owner/my-secrets"     # owner/repo, full URL, or file://
+    branch: main
+    local_path: "~/.cache/jtsekret/repo"
+    auto_pull: true
+    auto_push: true
     auth:
-      type: oauth
-      # token: ""
-      # service_account_file: ""
+      type: token                # token | ssh | none
+      token: ""                  # prefer JTSEKRET_GITHUB_TOKEN env var
+
+  # Yandex Cloud Lockbox.
+  #   YC_OAUTH_TOKEN  long-lived (~1y) Yandex Passport token from oauth.yandex.ru
+  #   YC_IAM_TOKEN    short-lived (~12h) IAM token from yc iam create-token
+  #   These are NOT interchangeable.
+  # lockbox:
+  #   folder_id: ""
+  #   auth:
+  #     # auto: explicit token -> YC_IAM_TOKEN -> YC_OAUTH_TOKEN
+  #     #       -> SA key file -> "yc iam create-token" (run "jtsekret login yc" once).
+  #     type: auto
 
 cache:
   enabled: true

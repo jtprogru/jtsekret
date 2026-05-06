@@ -23,8 +23,11 @@ package lockbox
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/yandex-cloud/go-sdk"
 	"github.com/yandex-cloud/go-sdk/iamkey"
@@ -42,51 +45,14 @@ type AuthConfig struct {
 }
 
 func NewClient(ctx context.Context, folderID string, auth AuthConfig) (*Client, error) {
-	var creds ycsdk.Credentials
+	authType := auth.Type
+	if authType == "" {
+		authType = "auto"
+	}
 
-	switch auth.Type {
-	case "oauth":
-		token := auth.Token
-		if token == "" {
-			token = os.Getenv("YC_OAUTH_TOKEN")
-			if token == "" {
-				return nil, fmt.Errorf("OAuth token not provided: set auth.token in config or YC_OAUTH_TOKEN env var")
-			}
-		}
-		creds = ycsdk.OAuthToken(token)
-
-	case "iam_token":
-		token := auth.Token
-		if token == "" {
-			token = os.Getenv("YC_IAM_TOKEN")
-			if token == "" {
-				return nil, fmt.Errorf("IAM token not provided: set auth.token in config or YC_IAM_TOKEN env var (run: yc iam create-token)")
-			}
-		}
-		creds = ycsdk.NewIAMTokenCredentials(token)
-
-	case "service_account_key":
-		keyFile := auth.ServiceAccountFile
-		if keyFile == "" {
-			keyFile = os.Getenv("YC_SERVICE_ACCOUNT_KEY_FILE")
-			if keyFile == "" {
-				return nil, fmt.Errorf("service account key file not provided: set auth.service_account_file in config or YC_SERVICE_ACCOUNT_KEY_FILE env var")
-			}
-		}
-		iamKey, err := iamkey.ReadFromJSONFile(keyFile)
-		if err != nil {
-			return nil, fmt.Errorf("read key file: %w", err)
-		}
-		creds, err = ycsdk.ServiceAccountKey(iamKey)
-		if err != nil {
-			return nil, fmt.Errorf("create service account credentials: %w", err)
-		}
-
-	case "instance_service_account":
-		creds = ycsdk.InstanceServiceAccount()
-
-	default:
-		return nil, fmt.Errorf("unsupported auth type: %q (supported: oauth, iam_token, service_account_key, instance_service_account)", auth.Type)
+	creds, err := resolveCredentials(authType, auth)
+	if err != nil {
+		return nil, err
 	}
 
 	sdk, err := ycsdk.Build(ctx, ycsdk.Config{
@@ -108,5 +74,136 @@ func (c *Client) SDK() *ycsdk.SDK {
 
 func (c *Client) FolderID() string {
 	return c.folderID
+}
+
+// resolveCredentials selects yc-sdk credentials based on auth.Type.
+//
+// Token clarification:
+//   - YC_OAUTH_TOKEN / auth.type=oauth: a long-lived (~1y) Yandex Passport
+//     OAuth token. Issued by Yandex's OAuth server (not Yandex Cloud).
+//     The SDK uses it to mint short-lived IAM tokens on each request.
+//   - YC_IAM_TOKEN  / auth.type=iam_token: a short-lived (~12h) IAM token
+//     specific to Yandex Cloud, produced by `yc iam create-token`.
+//
+// auth.type=auto resolves them transparently and additionally falls back
+// to invoking the local `yc` CLI, which is exactly the path the user
+// already used to authenticate to their cloud (`yc init` browser flow).
+func resolveCredentials(authType string, auth AuthConfig) (ycsdk.Credentials, error) {
+	switch authType {
+	case "auto":
+		return autoCredentials(auth)
+	case "oauth":
+		token := firstNonEmpty(auth.Token, os.Getenv("YC_OAUTH_TOKEN"))
+		if token == "" {
+			return nil, errors.New(
+				"OAuth token not provided: set auth.token in config or YC_OAUTH_TOKEN env var.\n" +
+					"  YC_OAUTH_TOKEN is a long-lived Yandex Passport token, not an IAM token.\n" +
+					"  Get one at https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb\n" +
+					"  Or use auth.type: auto to let jtsekret invoke `yc iam create-token` for you.")
+		}
+		return ycsdk.OAuthToken(token), nil
+	case "iam_token":
+		token := firstNonEmpty(auth.Token, os.Getenv("YC_IAM_TOKEN"))
+		if token == "" {
+			return nil, errors.New(
+				"IAM token not provided: set auth.token in config or YC_IAM_TOKEN env var.\n" +
+					"  Get one with: yc iam create-token  (12h lifetime)\n" +
+					"  Or use auth.type: auto to make jtsekret refresh it on every call.")
+		}
+		return ycsdk.NewIAMTokenCredentials(token), nil
+	case "service_account_key":
+		keyFile := firstNonEmpty(auth.ServiceAccountFile, os.Getenv("YC_SERVICE_ACCOUNT_KEY_FILE"))
+		if keyFile == "" {
+			return nil, errors.New("service account key file not provided: set auth.service_account_file or YC_SERVICE_ACCOUNT_KEY_FILE")
+		}
+		iamKey, err := iamkey.ReadFromJSONFile(keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("read key file: %w", err)
+		}
+		c, err := ycsdk.ServiceAccountKey(iamKey)
+		if err != nil {
+			return nil, fmt.Errorf("service account credentials: %w", err)
+		}
+		return c, nil
+	case "instance_service_account":
+		return ycsdk.InstanceServiceAccount(), nil
+	default:
+		return nil, fmt.Errorf("unsupported auth.type: %q (supported: auto, oauth, iam_token, service_account_key, instance_service_account)", authType)
+	}
+}
+
+// autoCredentials picks the best available credential source without
+// forcing the user to declare it explicitly. Probe order:
+//
+//  1. explicit auth.token in config (treated as IAM if the value looks
+//     like an IAM token, otherwise OAuth)
+//  2. YC_IAM_TOKEN env var
+//  3. YC_OAUTH_TOKEN env var
+//  4. YC_SERVICE_ACCOUNT_KEY_FILE env var (or auth.service_account_file)
+//  5. local `yc iam create-token` CLI invocation (uses whichever profile
+//     the user already authenticated with via `yc init`)
+//
+// If everything fails the returned error explains how to fix it.
+func autoCredentials(auth AuthConfig) (ycsdk.Credentials, error) {
+	if auth.Token != "" {
+		return ycsdk.NewIAMTokenCredentials(auth.Token), nil
+	}
+	if t := os.Getenv("YC_IAM_TOKEN"); t != "" {
+		return ycsdk.NewIAMTokenCredentials(t), nil
+	}
+	if t := os.Getenv("YC_OAUTH_TOKEN"); t != "" {
+		return ycsdk.OAuthToken(t), nil
+	}
+	if keyFile := firstNonEmpty(auth.ServiceAccountFile, os.Getenv("YC_SERVICE_ACCOUNT_KEY_FILE")); keyFile != "" {
+		iamKey, err := iamkey.ReadFromJSONFile(keyFile)
+		if err == nil {
+			if c, err := ycsdk.ServiceAccountKey(iamKey); err == nil {
+				return c, nil
+			}
+		}
+	}
+	if token, err := iamTokenFromYCCLI(); err == nil {
+		return ycsdk.NewIAMTokenCredentials(token), nil
+	} else if !errors.Is(err, errYCNotFound) {
+		return nil, fmt.Errorf(
+			"auth.type=auto: failed to obtain a token via `yc iam create-token`: %w\n"+
+				"  Run `yc init` to (re-)authenticate with Yandex Cloud, "+
+				"or set YC_IAM_TOKEN / YC_OAUTH_TOKEN / a service account key explicitly.", err)
+	}
+	return nil, errors.New(
+		"auth.type=auto: no Yandex Cloud credentials found. One of the following is required:\n" +
+			"  - install the `yc` CLI and run `yc init` (then jtsekret picks up auth automatically), or\n" +
+			"  - set YC_IAM_TOKEN (12h lifetime, from `yc iam create-token`), or\n" +
+			"  - set YC_OAUTH_TOKEN (long-lived, from https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb), or\n" +
+			"  - set YC_SERVICE_ACCOUNT_KEY_FILE pointing to a JSON service-account key.")
+}
+
+var errYCNotFound = errors.New("yc CLI not found in PATH")
+
+// iamTokenFromYCCLI shells out to `yc iam create-token`. Returns
+// errYCNotFound if the CLI is not on PATH, allowing autoCredentials to
+// fall through to its terminal error message.
+func iamTokenFromYCCLI() (string, error) {
+	if _, err := exec.LookPath("yc"); err != nil {
+		return "", errYCNotFound
+	}
+	out, err := exec.Command("yc", "iam", "create-token").Output()
+	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return "", fmt.Errorf("yc iam create-token: %s", strings.TrimSpace(string(ee.Stderr)))
+		}
+		return "", fmt.Errorf("yc iam create-token: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 

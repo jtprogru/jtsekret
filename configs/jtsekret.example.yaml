@@ -5,64 +5,61 @@
 # Example: JTSEKRET_BACKEND_LOCKBOX_FOLDER_ID overrides backend.lockbox.folder_id
 
 backend:
-  # Backend type: lockbox, github, mock
-  type: lockbox
+  # Backend type: github (default, personal-first), lockbox, mock.
+  type: github
 
-  # Yandex Cloud Lockbox configuration
-  lockbox:
-    # Folder ID from Yandex Cloud console
-    folder_id: "b1g1234567890abcdefghijklmnopqrstu"
-
-    # Authentication configuration — choose one of the types below:
+  # ---------------------------------------------------------------------
+  # GitHub private repo backend — your own private GitHub repo as storage,
+  # AES-256-GCM encrypted at rest with an Argon2id-derived key.
+  # ---------------------------------------------------------------------
+  github:
+    # Either "owner/repo" shorthand (-> https://github.com/owner/repo.git),
+    # a full HTTPS/SSH URL, or a file:// path (useful for tests / local sync).
+    repo: "jtprogru/my-secrets"
+    branch: main
+    # Where the repo is cloned locally (supports ~).
+    local_path: "~/.cache/jtsekret/repo"
+    # Auto pull/push on every read/write. Set both to false and use
+    # `jtsekret sync` for manual control.
+    auto_pull: true
+    auto_push: true
     auth:
-      # --- Option 1: OAuth token (permanent, personal account) ---
-      # Get at: https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb
-      # Env var: YC_OAUTH_TOKEN
-      # type: oauth
-      # token: ""
-
-      # --- Option 2: IAM token (short-lived, personal account) ---
-      # Generate: yc iam create-token
-      # Env var: YC_IAM_TOKEN
-      # type: iam_token
-      # token: ""
-
-      # --- Option 3: Service account key file (recommended for automation) ---
-      # Generate: yc iam key create --service-account-id <id> --output key.json
-      # Env var: YC_SERVICE_ACCOUNT_KEY_FILE
-      # type: service_account_key
-      # service_account_file: "/path/to/key.json"
-
-      # --- Option 4: Instance service account (for Yandex Cloud VMs) ---
-      # No credentials needed — uses VM metadata service automatically
-      # type: instance_service_account
-
-      type: oauth
-
-  # GitHub private repo backend (encrypted-at-rest in your own private repo)
-  # github:
-  #   # Either "owner/repo" shorthand (-> https://github.com/owner/repo.git),
-  #   # full HTTPS/SSH URL, or file:// path (useful for tests/local sync).
-  #   repo: "jtprogru/my-secrets"
-  #   branch: main
-  #   # Where the repo is cloned locally (supports ~).
-  #   local_path: "~/.cache/jtsekret/repo"
-  #   # Auto pull/push on each operation. Set to false and use `jtsekret sync`
-  #   # for manual control (sync command lands in a later release).
-  #   auto_pull: true
-  #   auto_push: true
-  #   auth:
-  #     # type: token  -> GitHub PAT (env JTSEKRET_GITHUB_TOKEN overrides)
-  #     # type: ssh    -> ssh-agent or explicit ssh_key_path
-  #     # type: none   -> file:// or pre-authenticated remotes
-  #     type: token
-  #     token: ""              # prefer JTSEKRET_GITHUB_TOKEN env var
-  #     # ssh_key_path: "~/.ssh/id_ed25519"
-  #     # ssh_key_password: ""
+      # type: token  -> GitHub PAT (env JTSEKRET_GITHUB_TOKEN overrides)
+      # type: ssh    -> ssh-agent or explicit ssh_key_path
+      # type: none   -> file:// or pre-authenticated remotes
+      type: token
+      token: ""              # prefer JTSEKRET_GITHUB_TOKEN env var
+      # ssh_key_path: "~/.ssh/id_ed25519"
+      # ssh_key_password: ""
   #
   # Master password for the github backend's at-rest AES-GCM encryption is
   # taken from JTSEKRET_GITHUB_MASTER_PASSWORD; if unset it falls back to
   # JTSEKRET_CACHE_MASTER_PASSWORD.
+
+  # ---------------------------------------------------------------------
+  # Yandex Cloud Lockbox backend.
+  #
+  # Token glossary (these two are NOT interchangeable):
+  #
+  #   YC_OAUTH_TOKEN  Long-lived (~1 year) Yandex Passport OAuth token.
+  #                   Issued by Yandex's OAuth server. The SDK swaps it
+  #                   for a fresh IAM token on each call. Get one at
+  #                   https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb
+  #
+  #   YC_IAM_TOKEN    Short-lived (~12h) IAM token, scoped to Yandex Cloud
+  #                   resources only. Produced by `yc iam create-token`.
+  #
+  # Recommended setup: install `yc` CLI, run `jtsekret login yc` once
+  # (or `yc init` directly), then leave auth.type at "auto" — jtsekret
+  # will refresh IAM tokens by invoking yc each call.
+  # ---------------------------------------------------------------------
+  # lockbox:
+  #   folder_id: "b1g1234567890abcdefghijklmnopqrstu"
+  #   auth:
+  #     # auto: probe explicit token -> YC_IAM_TOKEN -> YC_OAUTH_TOKEN
+  #     #       -> service-account key -> `yc iam create-token`. Recommended.
+  #     # oauth | iam_token | service_account_key | instance_service_account
+  #     type: auto
 
 # Local encrypted cache configuration
 cache:

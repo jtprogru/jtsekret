@@ -48,14 +48,29 @@ jtsekret exec --secret my-api-token --key token --env API_TOKEN -- curl https://
 
 ### Аутентификация в Yandex Cloud
 
-| `auth.type` | Описание | Переменная окружения |
-|---|---|---|
-| `oauth` | Постоянный OAuth-токен | `YC_OAUTH_TOKEN` |
-| `iam_token` | Краткосрочный IAM-токен | `YC_IAM_TOKEN` |
-| `service_account_key` | Ключ сервисного аккаунта (JSON-файл) | `YC_SERVICE_ACCOUNT_KEY_FILE` |
-| `instance_service_account` | Метаданные ВМ Yandex Cloud | — |
+`YC_OAUTH_TOKEN` и `YC_IAM_TOKEN` — **разные токены, не взаимозаменяемы**:
 
-Пример конфига с OAuth-токеном:
+| Токен | Что это | Срок | Где брать |
+|---|---|---|---|
+| `YC_OAUTH_TOKEN` | OAuth-токен Yandex Passport (общий аккаунт Yandex) | ~1 год | [oauth.yandex.ru/authorize](https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb) |
+| `YC_IAM_TOKEN` | IAM-токен, привязанный к Yandex Cloud | ~12 часов | `yc iam create-token` |
+
+| `auth.type` | Поведение |
+|---|---|
+| `auto` (рекомендуется) | Резолв по цепочке: explicit `auth.token` → `YC_IAM_TOKEN` → `YC_OAUTH_TOKEN` → SA-key → `yc iam create-token` через локальный `yc` CLI. |
+| `oauth` | Только OAuth-токен (Passport). |
+| `iam_token` | Только IAM-токен. |
+| `service_account_key` | JSON ключ сервисного аккаунта (`yc iam key create`). |
+| `instance_service_account` | Метаданные ВМ Yandex Cloud. |
+
+**Быстрый старт без ручных токенов:**
+
+```bash
+jtsekret login yc          # запускает yc init (браузерный OAuth)
+jtsekret list              # auth.type=auto автоматически вызывает yc iam create-token
+```
+
+Пример конфига:
 
 ```yaml
 backend:
@@ -63,8 +78,7 @@ backend:
   lockbox:
     folder_id: "b1g1234567890abcdefgh"
     auth:
-      type: oauth
-      # token: ""  # либо задайте через YC_OAUTH_TOKEN
+      type: auto             # cм. таблицу выше
 
 cache:
   enabled: true

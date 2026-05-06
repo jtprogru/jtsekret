@@ -46,7 +46,7 @@ func NewBackend(cfg map[string]interface{}) (backend.Backend, error) {
 	}
 
 	authCfg := AuthConfig{
-		Type: "oauth",
+		Type: "auto",
 	}
 
 	if auth, ok := cfg["auth"].(map[string]interface{}); ok {
