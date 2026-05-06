@@ -40,7 +40,25 @@ type Config struct {
 type BackendConfig struct {
 	Type    string         `mapstructure:"type"`
 	Lockbox LockboxConfig  `mapstructure:"lockbox"`
+	Github  GithubConfig   `mapstructure:"github"`
 	Custom  map[string]any `mapstructure:",remain"`
+}
+
+type GithubConfig struct {
+	Repo           string     `mapstructure:"repo"`
+	Branch         string     `mapstructure:"branch"`
+	LocalPath      string     `mapstructure:"local_path"`
+	AutoPull       bool       `mapstructure:"auto_pull"`
+	AutoPush       bool       `mapstructure:"auto_push"`
+	Auth           GithubAuth `mapstructure:"auth"`
+	MasterPassword string     `mapstructure:"-"`
+}
+
+type GithubAuth struct {
+	Type           string `mapstructure:"type"`
+	Token          string `mapstructure:"token"`
+	SSHKeyPath     string `mapstructure:"ssh_key_path"`
+	SSHKeyPassword string `mapstructure:"ssh_key_password"`
 }
 
 type LockboxConfig struct {
@@ -80,7 +98,30 @@ func Load() (*Config, error) {
 
 	cfg.Cache.MasterPassword = os.Getenv("JTSEKRET_CACHE_MASTER_PASSWORD")
 
+	cfg.Backend.Github.MasterPassword = os.Getenv("JTSEKRET_GITHUB_MASTER_PASSWORD")
+	if cfg.Backend.Github.MasterPassword == "" {
+		cfg.Backend.Github.MasterPassword = cfg.Cache.MasterPassword
+	}
+	if cfg.Backend.Github.Auth.Token == "" {
+		cfg.Backend.Github.Auth.Token = os.Getenv("JTSEKRET_GITHUB_TOKEN")
+	}
+
 	return cfg, nil
+}
+
+func (c *GithubConfig) GetLocalPath() string {
+	p := c.LocalPath
+	if p == "" {
+		p = "~/.cache/jtsekret/repo"
+	}
+	if strings.HasPrefix(p, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return p
+		}
+		return filepath.Join(home, strings.TrimPrefix(p, "~"))
+	}
+	return p
 }
 
 func (c *Config) GetCachePath() string {

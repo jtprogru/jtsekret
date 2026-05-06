@@ -4,7 +4,7 @@ CLI-утилита для централизованного и безопасн
 
 Абстрагирует бэкенд хранилища за единым интерфейсом, реализует локальный шифрованный кэш и позволяет передавать секреты в другие процессы через Unix-пайп.
 
-**Поддерживаемые бэкенды:** Yandex Cloud Lockbox
+**Поддерживаемые бэкенды:** Yandex Cloud Lockbox, GitHub private repo (зашифрованные файлы в вашем приватном репозитории)
 
 ## Установка
 
@@ -80,6 +80,25 @@ log:
 ```
 
 Полный пример со всеми опциями — `configs/jtsekret.example.yaml`.
+
+### GitHub private repo backend
+
+Хранит секреты как зашифрованные файлы (`secrets/<name>.enc` + `secrets/<name>.meta.json`) в вашем приватном GitHub-репо. Шифрование — AES-256-GCM, ключ выводится Argon2id из мастер-пароля и per-secret salt. Repo-URL поддерживает форматы `owner/repo`, полный HTTPS/SSH или `file://` (для локальной синхронизации/тестов).
+
+```yaml
+backend:
+  type: github
+  github:
+    repo: "jtprogru/my-secrets"
+    branch: main
+    local_path: "~/.cache/jtsekret/repo"
+    auto_pull: true
+    auto_push: true
+    auth:
+      type: token   # token | ssh | none
+```
+
+Мастер-пароль: `JTSEKRET_GITHUB_MASTER_PASSWORD` (fallback — `JTSEKRET_CACHE_MASTER_PASSWORD`). Токен GitHub: `JTSEKRET_GITHUB_TOKEN` (PAT с `contents:write` на репо).
 
 ## Команды
 

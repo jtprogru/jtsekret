@@ -65,18 +65,9 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	lockboxCfg := map[string]interface{}{
-		"folder_id": cfg.Backend.Lockbox.FolderID,
-		"auth": map[string]interface{}{
-			"type":                 cfg.Backend.Lockbox.Auth.Type,
-			"token":                cfg.Backend.Lockbox.Auth.Token,
-			"service_account_file": cfg.Backend.Lockbox.Auth.ServiceAccountFile,
-		},
-	}
-
-	b, err := backend.New(cfg.Backend.Type, lockboxCfg)
+	b, err := buildBackend(cfg)
 	if err != nil {
-		return fmt.Errorf("create backend: %w", err)
+		return err
 	}
 
 	labels := make(map[string]string)

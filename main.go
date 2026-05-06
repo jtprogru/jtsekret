@@ -30,6 +30,7 @@ import (
 	"syscall"
 
 	"github.com/jtprogru/jtsekret/cmd"
+	_ "github.com/jtprogru/jtsekret/internal/backend/githubrepo"
 	_ "github.com/jtprogru/jtsekret/internal/backend/lockbox"
 )
 

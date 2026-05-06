@@ -5,7 +5,7 @@
 # Example: JTSEKRET_BACKEND_LOCKBOX_FOLDER_ID overrides backend.lockbox.folder_id
 
 backend:
-  # Backend type: lockbox, mock
+  # Backend type: lockbox, github, mock
   type: lockbox
 
   # Yandex Cloud Lockbox configuration
@@ -38,6 +38,31 @@ backend:
       # type: instance_service_account
 
       type: oauth
+
+  # GitHub private repo backend (encrypted-at-rest in your own private repo)
+  # github:
+  #   # Either "owner/repo" shorthand (-> https://github.com/owner/repo.git),
+  #   # full HTTPS/SSH URL, or file:// path (useful for tests/local sync).
+  #   repo: "jtprogru/my-secrets"
+  #   branch: main
+  #   # Where the repo is cloned locally (supports ~).
+  #   local_path: "~/.cache/jtsekret/repo"
+  #   # Auto pull/push on each operation. Set to false and use `jtsekret sync`
+  #   # for manual control (sync command lands in a later release).
+  #   auto_pull: true
+  #   auto_push: true
+  #   auth:
+  #     # type: token  -> GitHub PAT (env JTSEKRET_GITHUB_TOKEN overrides)
+  #     # type: ssh    -> ssh-agent or explicit ssh_key_path
+  #     # type: none   -> file:// or pre-authenticated remotes
+  #     type: token
+  #     token: ""              # prefer JTSEKRET_GITHUB_TOKEN env var
+  #     # ssh_key_path: "~/.ssh/id_ed25519"
+  #     # ssh_key_password: ""
+  #
+  # Master password for the github backend's at-rest AES-GCM encryption is
+  # taken from JTSEKRET_GITHUB_MASTER_PASSWORD; if unset it falls back to
+  # JTSEKRET_CACHE_MASTER_PASSWORD.
 
 # Local encrypted cache configuration
 cache:

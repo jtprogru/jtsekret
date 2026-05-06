@@ -31,7 +31,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/jtprogru/jtsekret/internal/backend"
 	"github.com/jtprogru/jtsekret/internal/config"
 )
 
@@ -180,18 +179,9 @@ func runConfigHealth(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	lockboxCfg := map[string]interface{}{
-		"folder_id": cfg.Backend.Lockbox.FolderID,
-		"auth": map[string]interface{}{
-			"type":                 cfg.Backend.Lockbox.Auth.Type,
-			"token":                cfg.Backend.Lockbox.Auth.Token,
-			"service_account_file": cfg.Backend.Lockbox.Auth.ServiceAccountFile,
-		},
-	}
-
-	b, err := backend.New(cfg.Backend.Type, lockboxCfg)
+	b, err := buildBackend(cfg)
 	if err != nil {
-		return fmt.Errorf("create backend: %w", err)
+		return err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
