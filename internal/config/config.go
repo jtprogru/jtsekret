@@ -22,12 +22,17 @@ THE SOFTWARE.
 package config
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
+
+	"github.com/jtprogru/jtsekret/internal/keychain"
 )
 
 type Config struct {
@@ -141,9 +146,9 @@ func loadFromViper(v *viper.Viper) (*Config, error) {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
 	}
 
-	cfg.Cache.MasterPassword = os.Getenv("JTSEKRET_CACHE_MASTER_PASSWORD")
+	cfg.Cache.MasterPassword = resolveMasterPassword("JTSEKRET_CACHE_MASTER_PASSWORD", "cache")
 
-	cfg.Backend.Github.MasterPassword = os.Getenv("JTSEKRET_GITHUB_MASTER_PASSWORD")
+	cfg.Backend.Github.MasterPassword = resolveMasterPassword("JTSEKRET_GITHUB_MASTER_PASSWORD", "github")
 	if cfg.Backend.Github.MasterPassword == "" {
 		cfg.Backend.Github.MasterPassword = cfg.Cache.MasterPassword
 	}
@@ -151,7 +156,7 @@ func loadFromViper(v *viper.Viper) (*Config, error) {
 		cfg.Backend.Github.Auth.Token = os.Getenv("JTSEKRET_GITHUB_TOKEN")
 	}
 
-	cfg.Backend.File.MasterPassword = os.Getenv("JTSEKRET_FILE_MASTER_PASSWORD")
+	cfg.Backend.File.MasterPassword = resolveMasterPassword("JTSEKRET_FILE_MASTER_PASSWORD", "file")
 	if cfg.Backend.File.MasterPassword == "" {
 		cfg.Backend.File.MasterPassword = cfg.Cache.MasterPassword
 	}
@@ -179,6 +184,37 @@ func (c *FileConfig) GetPath() string {
 		return filepath.Join(home, strings.TrimPrefix(p, "~"))
 	}
 	return p
+}
+
+// resolveMasterPassword returns the password for a slot using this
+// precedence:
+//
+//  1. environment variable named env (e.g. JTSEKRET_GITHUB_MASTER_PASSWORD)
+//  2. macOS Keychain entry under Service=jtsekret, Account=slot
+//
+// Keychain access on darwin may pop a system prompt the first time a
+// build of jtsekret asks for a slot ("always allow"); that's the
+// intended UX. Non-darwin platforms silently skip step 2.
+func resolveMasterPassword(env, slot string) string {
+	if v := os.Getenv(env); v != "" {
+		return v
+	}
+	if !keychain.Available() {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	v, err := keychain.Get(ctx, slot)
+	if err != nil {
+		if errors.Is(err, keychain.ErrNotFound) || errors.Is(err, keychain.ErrUnsupported) {
+			return ""
+		}
+		// Surface unexpected keychain errors to stderr but don't fail
+		// config loading — env var or interactive prompt may still work.
+		fmt.Fprintf(os.Stderr, "warning: keychain lookup for %q failed: %v\n", slot, err)
+		return ""
+	}
+	return v
 }
 
 func (c *GithubConfig) GetLocalPath() string {

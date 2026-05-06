@@ -277,6 +277,21 @@ jtsekret rotate-master                       # github/file: расшифрова
 
 Текущий пароль берётся из `JTSEKRET_<BACKEND>_MASTER_PASSWORD` (с fallback'ом на `JTSEKRET_CACHE_MASTER_PASSWORD`); новый запрашивается интерактивно (дважды для подтверждения). После успешной ротации обновите env-переменную в шелле/keychain.
 
+### macOS Keychain (вместо `JTSEKRET_*_MASTER_PASSWORD` env vars)
+
+На macOS можно сохранить мастер-пароли в keychain — jtsekret подхватит их автоматически, если env var не задан. Слоты: `cache`, `github`, `file` (по одному на бэкенд с локальным шифрованием).
+
+```
+jtsekret keychain set <slot>     # запросит пароль интерактивно (дважды)
+jtsekret keychain get <slot>     # прочитать (Keychain попросит подтверждение)
+jtsekret keychain unset <slot>   # удалить слот
+jtsekret keychain list           # какие слоты заведены
+```
+
+Цепочка резолва на каждый запуск: `JTSEKRET_<SLOT>_MASTER_PASSWORD` → macOS Keychain (`Service=jtsekret`, `Account=<slot>`). На non-darwin платформах keychain-шаг пропускается молча.
+
+При первом доступе из новой сборки jtsekret macOS покажет системный prompt — выберите «Always Allow», чтобы не подтверждать каждый раз. Reализовано через `/usr/bin/security` (без CGO/Security.framework).
+
 ### Audit-лог
 
 Каждый `get/create/set/delete/dump/exec` пишет одну JSON-строку в локальный append-only лог. Значения секретов **не пишутся** — только action/backend/secret/key/result. По умолчанию путь — `$XDG_STATE_HOME/jtsekret/audit.log` (fallback `~/.local/state/jtsekret/audit.log`); можно переопределить через `JTSEKRET_AUDIT_LOG`.
