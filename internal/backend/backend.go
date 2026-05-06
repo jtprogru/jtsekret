@@ -59,6 +59,13 @@ type Backend interface {
 	DeleteSecret(ctx context.Context, nameOrID string) error
 }
 
+// Syncer is implemented by backends that have an explicit synchronization
+// step with a remote (e.g. git pull/push). Backends that always operate
+// against an authoritative remote (Lockbox, Vault) don't need this.
+type Syncer interface {
+	Sync(ctx context.Context) error
+}
+
 type Factory func(cfg map[string]interface{}) (Backend, error)
 
 var registry = map[string]Factory{}

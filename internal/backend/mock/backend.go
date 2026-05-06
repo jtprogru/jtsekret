@@ -133,23 +133,37 @@ func (m *MockBackend) AddVersion(ctx context.Context, nameOrID string, entries [
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, ok := m.secrets[nameOrID]; !ok {
-		return fmt.Errorf("secret not found: %s", nameOrID)
+	key := nameOrID
+	if _, ok := m.secrets[key]; !ok {
+		// fall back to name-based lookup, mirroring GetSecret's behaviour
+		for id, s := range m.secrets {
+			if s != nil && s.Name == nameOrID {
+				key = id
+				break
+			}
+		}
+		if _, ok := m.secrets[key]; !ok {
+			return fmt.Errorf("secret not found: %s", nameOrID)
+		}
 	}
 
 	now := time.Now().Format(time.RFC3339)
-	m.secrets[nameOrID].UpdatedAt = now
+	m.secrets[key].UpdatedAt = now
 
 	entryKeys := make([]string, len(entries))
 	for i, e := range entries {
 		entryKeys[i] = e.Key
 	}
-	m.secrets[nameOrID].EntryKeys = entryKeys
+	m.secrets[key].EntryKeys = entryKeys
 
-	m.payloads[nameOrID] = &backend.Payload{
-		SecretID:  nameOrID,
+	newPayload := &backend.Payload{
+		SecretID:  key,
 		VersionID: "2",
 		Entries:   entries,
+	}
+	m.payloads[key] = newPayload
+	if name := m.secrets[key].Name; name != "" {
+		m.payloads[name] = newPayload
 	}
 
 	return nil

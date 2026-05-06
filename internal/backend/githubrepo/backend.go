@@ -338,6 +338,28 @@ func (b *Backend) commitAndPush(message string, paths ...string) error {
 	return nil
 }
 
+// Sync performs an explicit pull then push, regardless of auto_pull/auto_push.
+// Useful when the user keeps both flags off and wants manual control.
+func (b *Backend) Sync(ctx context.Context) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if err := b.pullLocked(); err != nil {
+		return err
+	}
+	err := b.repo.Push(&git.PushOptions{
+		RemoteName: "origin",
+		Auth:       b.auth,
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", b.branch, b.branch)),
+		},
+	})
+	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+		return fmt.Errorf("push: %w", err)
+	}
+	return nil
+}
+
 // --- Backend interface ---
 
 func (b *Backend) ListSecrets(ctx context.Context) ([]backend.Secret, error) {

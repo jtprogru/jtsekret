@@ -89,8 +89,23 @@ type LogConfig struct {
 }
 
 func Load() (*Config, error) {
-	v := viper.GetViper()
+	return loadFromViper(viper.GetViper())
+}
 
+// LoadFromFile reads a jtsekret config from an explicit path using a fresh
+// viper instance — useful for `migrate` and other commands that need a
+// second configuration without mutating the process-global viper state.
+func LoadFromFile(path string) (*Config, error) {
+	v := viper.New()
+	v.SetConfigFile(path)
+	v.SetConfigType("yaml")
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("read config %q: %w", path, err)
+	}
+	return loadFromViper(v)
+}
+
+func loadFromViper(v *viper.Viper) (*Config, error) {
 	cfg := &Config{}
 	if err := v.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("unmarshal config: %w", err)

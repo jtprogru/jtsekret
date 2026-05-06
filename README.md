@@ -125,6 +125,12 @@ jtsekret dump <name> --key id_rsa --output -  # вывести в stdout
 
 jtsekret cache status                    # статус кэша
 jtsekret cache clear                     # очистить кэш
+
+jtsekret sync                            # явный pull+push (для github backend; no-op для lockbox)
+jtsekret migrate --target-config <path>  # скопировать все секреты в другой бэкенд
+jtsekret migrate --target-config <path> --update           # перезаписать существующие
+jtsekret migrate --target-config <path> --dry-run          # показать план без записи
+jtsekret migrate --target-config <path> --only name1,name2 # только эти секреты
 ```
 
 Глобальные флаги:
