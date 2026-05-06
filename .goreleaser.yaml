@@ -41,6 +41,11 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ArtifactName }}.sbom.json"
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
