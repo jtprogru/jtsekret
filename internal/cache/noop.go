@@ -34,7 +34,7 @@ func NewNoop() *Noop {
 }
 
 func (n *Noop) Get(ctx context.Context, nameOrID string) (*domain.CachedPayload, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil // no-op cache always reports a miss; (nil, nil) is the contract
 }
 
 func (n *Noop) Set(ctx context.Context, nameOrID string, payload *domain.CachedPayload) error {

@@ -25,6 +25,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -63,7 +64,7 @@ func Decrypt(ciphertext []byte, key []byte) ([]byte, error) {
 	}
 
 	if len(ciphertext) < NonceSize {
-		return nil, fmt.Errorf("ciphertext too short")
+		return nil, errors.New("ciphertext too short")
 	}
 
 	block, err := aes.NewCipher(key)

@@ -62,7 +62,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("list secrets: %w", err)
 	}
 
-	outputFormat := output.OutputFormat(viper.GetString("output.format"))
+	outputFormat := output.Format(viper.GetString("output.format"))
 	if outputFormat == output.FormatAuto {
 		outputFormat = output.DetectFormat()
 	}

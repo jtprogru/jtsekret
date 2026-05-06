@@ -179,12 +179,12 @@ func buildAuth(cfg map[string]interface{}, repoURL string) (transport.AuthMethod
 	rawAuth, ok := cfg["auth"].(map[string]interface{})
 	if !ok || rawAuth == nil {
 		// Local file:// repos and unauthenticated cases are valid.
-		return nil, nil
+		return nil, nil //nolint:nilnil // intentional: nil means "no auth", which go-git treats as anonymous
 	}
 	authType, _ := rawAuth["type"].(string)
 	switch authType {
 	case "", "none":
-		return nil, nil
+		return nil, nil //nolint:nilnil // explicitly disabled auth
 	case "token":
 		token, _ := rawAuth["token"].(string)
 		if token == "" {
@@ -245,7 +245,7 @@ func (b *Backend) openOrClone() error {
 		ReferenceName: plumbing.NewBranchReferenceName(b.branch),
 		SingleBranch:  true,
 	})
-	if err == transport.ErrEmptyRemoteRepository {
+	if errors.Is(err, transport.ErrEmptyRemoteRepository) {
 		repo, err = b.initEmpty()
 		if err != nil {
 			return err
@@ -471,7 +471,7 @@ func (b *Backend) CreateSecret(ctx context.Context, name, description string, en
 	if err != nil {
 		return nil, err
 	}
-	if err := b.commitAndPush(fmt.Sprintf("jtsekret: create %s", name), metaPath, encPath); err != nil {
+	if err := b.commitAndPush("jtsekret: create "+name, metaPath, encPath); err != nil {
 		return nil, err
 	}
 	s := metaToSecret(meta)
@@ -516,7 +516,7 @@ func (b *Backend) DeleteSecret(ctx context.Context, nameOrID string) error {
 	if err := os.Remove(filepath.Join(b.localPath, relEnc)); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove enc: %w", err)
 	}
-	return b.commitAndPush(fmt.Sprintf("jtsekret: delete %s", nameOrID), relMeta, relEnc)
+	return b.commitAndPush("jtsekret: delete "+nameOrID, relMeta, relEnc)
 }
 
 // --- helpers ---

@@ -48,6 +48,10 @@ func init() {
 }
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -68,6 +72,7 @@ func main() {
 
 	if err := cmd.ExecuteContext(ctx); err != nil {
 		slog.Error("execution failed", slog.Any("error", err))
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }

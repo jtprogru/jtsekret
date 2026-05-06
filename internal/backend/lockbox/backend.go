@@ -23,6 +23,7 @@ package lockbox
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -41,7 +42,7 @@ import (
 // ListSecrets — Lockbox itself only accepts IDs in Get/Delete/AddVersion.
 var secretIDPattern = regexp.MustCompile(`^[a-z0-9]{20}$`)
 
-type LockboxBackend struct {
+type Backend struct {
 	client   *Client
 	secrets  *sdklockbox.SecretServiceClient
 	payloads *payloadsvc.PayloadServiceClient
@@ -50,7 +51,7 @@ type LockboxBackend struct {
 func NewBackend(cfg map[string]interface{}) (backend.Backend, error) {
 	folderID, _ := cfg["folder_id"].(string)
 	if folderID == "" {
-		return nil, fmt.Errorf("folder_id is required")
+		return nil, errors.New("folder_id is required")
 	}
 
 	authCfg := AuthConfig{
@@ -80,14 +81,14 @@ func NewBackend(cfg map[string]interface{}) (backend.Backend, error) {
 	secrets := client.SDK().LockboxSecret().Secret()
 	payloads := client.SDK().LockboxPayload().Payload()
 
-	return &LockboxBackend{
+	return &Backend{
 		client:   client,
 		secrets:  secrets,
 		payloads: payloads,
 	}, nil
 }
 
-func (b *LockboxBackend) ListSecrets(ctx context.Context) ([]backend.Secret, error) {
+func (b *Backend) ListSecrets(ctx context.Context) ([]backend.Secret, error) {
 	req := &lockboxpb.ListSecretsRequest{
 		FolderId: b.client.FolderID(),
 	}
@@ -97,15 +98,15 @@ func (b *LockboxBackend) ListSecrets(ctx context.Context) ([]backend.Secret, err
 		return nil, fmt.Errorf("list secrets: %w", err)
 	}
 
-	secrets := make([]backend.Secret, 0, len(resp.Secrets))
-	for _, s := range resp.Secrets {
+	secrets := make([]backend.Secret, 0, len(resp.GetSecrets()))
+	for _, s := range resp.GetSecrets() {
 		secrets = append(secrets, mapSecret(s))
 	}
 
 	return secrets, nil
 }
 
-func (b *LockboxBackend) GetSecret(ctx context.Context, nameOrID string) (*backend.Secret, error) {
+func (b *Backend) GetSecret(ctx context.Context, nameOrID string) (*backend.Secret, error) {
 	id, err := b.resolveID(ctx, nameOrID)
 	if err != nil {
 		return nil, err
@@ -118,7 +119,7 @@ func (b *LockboxBackend) GetSecret(ctx context.Context, nameOrID string) (*backe
 	return &secret, nil
 }
 
-func (b *LockboxBackend) GetPayload(ctx context.Context, nameOrID string, versionID string) (*backend.Payload, error) {
+func (b *Backend) GetPayload(ctx context.Context, nameOrID string, versionID string) (*backend.Payload, error) {
 	id, err := b.resolveID(ctx, nameOrID)
 	if err != nil {
 		return nil, err
@@ -134,7 +135,7 @@ func (b *LockboxBackend) GetPayload(ctx context.Context, nameOrID string, versio
 	return mapPayload(id, resp), nil
 }
 
-func (b *LockboxBackend) CreateSecret(ctx context.Context, name, description string, entries []backend.Entry) (*backend.Secret, error) {
+func (b *Backend) CreateSecret(ctx context.Context, name, description string, entries []backend.Entry) (*backend.Secret, error) {
 	req := &lockboxpb.CreateSecretRequest{
 		FolderId:              b.client.FolderID(),
 		Name:                  name,
@@ -168,7 +169,7 @@ func (b *LockboxBackend) CreateSecret(ctx context.Context, name, description str
 	return &s, nil
 }
 
-func (b *LockboxBackend) AddVersion(ctx context.Context, nameOrID string, entries []backend.Entry) error {
+func (b *Backend) AddVersion(ctx context.Context, nameOrID string, entries []backend.Entry) error {
 	id, err := b.resolveID(ctx, nameOrID)
 	if err != nil {
 		return err
@@ -187,7 +188,7 @@ func (b *LockboxBackend) AddVersion(ctx context.Context, nameOrID string, entrie
 	return nil
 }
 
-func (b *LockboxBackend) DeleteSecret(ctx context.Context, nameOrID string) error {
+func (b *Backend) DeleteSecret(ctx context.Context, nameOrID string) error {
 	id, err := b.resolveID(ctx, nameOrID)
 	if err != nil {
 		return err
@@ -206,7 +207,7 @@ func (b *LockboxBackend) DeleteSecret(ctx context.Context, nameOrID string) erro
 // real secret ID. Lockbox APIs only accept IDs, so we list-and-match by
 // name when the input doesn't look like an ID. If multiple secrets in the
 // folder share the name we report it explicitly — Lockbox does allow it.
-func (b *LockboxBackend) resolveID(ctx context.Context, nameOrID string) (string, error) {
+func (b *Backend) resolveID(ctx context.Context, nameOrID string) (string, error) {
 	if secretIDPattern.MatchString(nameOrID) {
 		return nameOrID, nil
 	}
@@ -215,9 +216,9 @@ func (b *LockboxBackend) resolveID(ctx context.Context, nameOrID string) (string
 		return "", fmt.Errorf("resolve secret %q: %w", nameOrID, err)
 	}
 	var matches []string
-	for _, s := range resp.Secrets {
-		if s.Name == nameOrID {
-			matches = append(matches, s.Id)
+	for _, s := range resp.GetSecrets() {
+		if s.GetName() == nameOrID {
+			matches = append(matches, s.GetId())
 		}
 	}
 	switch len(matches) {
@@ -254,20 +255,20 @@ func toPayloadEntryChanges(entries []backend.Entry) []*lockboxpb.PayloadEntryCha
 
 func mapSecret(s *lockboxpb.Secret) backend.Secret {
 	createdAt := ""
-	if s.CreatedAt != nil {
-		createdAt = s.CreatedAt.AsTime().Format(time.RFC3339)
+	if s.GetCreatedAt() != nil {
+		createdAt = s.GetCreatedAt().AsTime().Format(time.RFC3339)
 	}
 
 	updatedAt := ""
-	if s.CurrentVersion != nil && s.CurrentVersion.CreatedAt != nil {
-		updatedAt = s.CurrentVersion.CreatedAt.AsTime().Format(time.RFC3339)
+	if s.GetCurrentVersion() != nil && s.GetCurrentVersion().GetCreatedAt() != nil {
+		updatedAt = s.GetCurrentVersion().GetCreatedAt().AsTime().Format(time.RFC3339)
 	}
 
 	return backend.Secret{
-		ID:          s.Id,
-		Name:        s.Name,
-		Description: s.Description,
-		Labels:      s.Labels,
+		ID:          s.GetId(),
+		Name:        s.GetName(),
+		Description: s.GetDescription(),
+		Labels:      s.GetLabels(),
 		EntryKeys:   []string{},
 		CreatedAt:   createdAt,
 		UpdatedAt:   updatedAt,
@@ -275,8 +276,8 @@ func mapSecret(s *lockboxpb.Secret) backend.Secret {
 }
 
 func mapPayload(secretID string, p *lockboxpb.Payload) *backend.Payload {
-	entries := make([]backend.Entry, 0, len(p.Entries))
-	for _, e := range p.Entries {
+	entries := make([]backend.Entry, 0, len(p.GetEntries()))
+	for _, e := range p.GetEntries() {
 		var value []byte
 		if txt := e.GetTextValue(); txt != "" {
 			value = []byte(txt)
@@ -284,14 +285,14 @@ func mapPayload(secretID string, p *lockboxpb.Payload) *backend.Payload {
 			value = bin
 		}
 		entries = append(entries, backend.Entry{
-			Key:   e.Key,
+			Key:   e.GetKey(),
 			Value: value,
 		})
 	}
 
 	return &backend.Payload{
 		SecretID:  secretID,
-		VersionID: p.VersionId,
+		VersionID: p.GetVersionId(),
 		Entries:   entries,
 	}
 }

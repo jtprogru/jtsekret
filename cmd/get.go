@@ -82,7 +82,7 @@ func runGet(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	outputFormat := output.OutputFormat(viper.GetString("output.format"))
+	outputFormat := output.Format(viper.GetString("output.format"))
 	if outputFormat == output.FormatAuto {
 		outputFormat = output.DetectFormat()
 	}
@@ -133,11 +133,12 @@ func runGet(cmd *cobra.Command, args []string) error {
 		for _, e := range payload.Entries {
 			if e.Key == getKey {
 				if getOutputRaw {
-					os.Stdout.Write(e.Value)
-				} else {
-					out.PrintEntry(os.Stdout, e.Key, e.Value)
+					if _, err := os.Stdout.Write(e.Value); err != nil {
+						return fmt.Errorf("write value: %w", err)
+					}
+					return nil
 				}
-				return nil
+				return out.PrintEntry(os.Stdout, e.Key, e.Value)
 			}
 		}
 		return fmt.Errorf("key %q not found", getKey)
@@ -145,8 +146,12 @@ func runGet(cmd *cobra.Command, args []string) error {
 
 	if getOutputRaw {
 		for _, e := range payload.Entries {
-			os.Stdout.Write(e.Value)
-			os.Stdout.Write([]byte{'\n'})
+			if _, err := os.Stdout.Write(e.Value); err != nil {
+				return fmt.Errorf("write value: %w", err)
+			}
+			if _, err := os.Stdout.Write([]byte{'\n'}); err != nil {
+				return fmt.Errorf("write newline: %w", err)
+			}
 		}
 		return nil
 	}

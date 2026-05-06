@@ -36,13 +36,13 @@ type Cache interface {
 	Stats(ctx context.Context) (map[string]interface{}, error)
 }
 
-type CacheEntry struct {
+type Entry struct {
 	Payload    *domain.Payload `json:"payload"`
 	CachedAt   time.Time       `json:"cached_at"`
 	TTLSeconds int             `json:"ttl_seconds"`
 }
 
-type CacheData struct {
+type Data struct {
 	Version int                   `json:"version"`
-	Entries map[string]CacheEntry `json:"entries"`
+	Entries map[string]Entry `json:"entries"`
 }

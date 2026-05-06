@@ -22,6 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"context"
 	"fmt"
 	"os"
@@ -83,7 +84,7 @@ func runDump(cmd *cobra.Command, args []string) error {
 	name := args[0]
 
 	if dumpOutput != "" && dumpKey == "" {
-		return fmt.Errorf("--output requires --key")
+		return errors.New("--output requires --key")
 	}
 
 	modeVal, err := strconv.ParseUint(dumpMode, 8, 32)
@@ -210,7 +211,7 @@ func dumpEntry(e backend.Entry, mode os.FileMode) error {
 		if _, err := os.Stat(dest); err == nil {
 			fmt.Fprintf(os.Stderr, "File %s already exists. Overwrite? (yes/no): ", dest)
 			var response string
-			fmt.Scanln(&response)
+			_, _ = fmt.Scanln(&response)
 			if response != "yes" {
 				fmt.Fprintf(os.Stderr, "Skipped %s\n", dest)
 				return nil

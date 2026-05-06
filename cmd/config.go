@@ -22,6 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"context"
 	"fmt"
 	"os"
@@ -73,7 +74,7 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 	}
 
 	configDir := filepath.Join(home, ".config", "jtsekret")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
 	}
 
@@ -123,7 +124,7 @@ log:
   level: warn
 `
 
-	if err := os.WriteFile(configPath, []byte(exampleConfig), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(exampleConfig), 0o600); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
 
@@ -159,7 +160,7 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 
 func runConfigValidate(cmd *cobra.Command, args []string) error {
 	if !viper.IsSet("backend") {
-		return fmt.Errorf("no backend configuration found")
+		return errors.New("no backend configuration found")
 	}
 
 	cfg, err := config.Load()

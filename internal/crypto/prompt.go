@@ -22,6 +22,7 @@ THE SOFTWARE.
 package crypto
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -50,7 +51,7 @@ func PromptPasswordConfirm() (string, error) {
 	}
 
 	if password != confirm {
-		return "", fmt.Errorf("passwords do not match")
+		return "", errors.New("passwords do not match")
 	}
 
 	return password, nil

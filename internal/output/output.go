@@ -12,13 +12,13 @@ import (
 	"github.com/jtprogru/jtsekret/internal/domain"
 )
 
-type OutputFormat string
+type Format string
 
 const (
-	FormatPlain OutputFormat = "plain"
-	FormatTable OutputFormat = "table"
-	FormatJSON  OutputFormat = "json"
-	FormatAuto  OutputFormat = "auto"
+	FormatPlain Format = "plain"
+	FormatTable Format = "table"
+	FormatJSON  Format = "json"
+	FormatAuto  Format = "auto"
 )
 
 type Outputter interface {
@@ -29,7 +29,7 @@ type Outputter interface {
 	PrintMessage(w io.Writer, msg string) error
 }
 
-func NewOutputter(format OutputFormat) Outputter {
+func NewOutputter(format Format) Outputter {
 	switch format {
 	case FormatJSON:
 		return &JSONOutputter{}
@@ -42,7 +42,7 @@ func NewOutputter(format OutputFormat) Outputter {
 	}
 }
 
-func DetectFormat() OutputFormat {
+func DetectFormat() Format {
 	if !term.IsTerminal(int(os.Stdout.Fd())) {
 		return FormatPlain
 	}

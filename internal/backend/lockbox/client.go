@@ -50,7 +50,7 @@ func NewClient(ctx context.Context, folderID string, auth AuthConfig) (*Client, 
 		authType = "auto"
 	}
 
-	creds, err := resolveCredentials(authType, auth)
+	creds, err := resolveCredentials(ctx, authType, auth)
 	if err != nil {
 		return nil, err
 	}
@@ -88,27 +88,27 @@ func (c *Client) FolderID() string {
 // auth.type=auto resolves them transparently and additionally falls back
 // to invoking the local `yc` CLI, which is exactly the path the user
 // already used to authenticate to their cloud (`yc init` browser flow).
-func resolveCredentials(authType string, auth AuthConfig) (ycsdk.Credentials, error) {
+func resolveCredentials(ctx context.Context, authType string, auth AuthConfig) (ycsdk.Credentials, error) {
 	switch authType {
 	case "auto":
-		return autoCredentials(auth)
+		return autoCredentials(ctx, auth)
 	case "oauth":
 		token := firstNonEmpty(auth.Token, os.Getenv("YC_OAUTH_TOKEN"))
 		if token == "" {
 			return nil, errors.New(
-				"OAuth token not provided: set auth.token in config or YC_OAUTH_TOKEN env var.\n" +
-					"  YC_OAUTH_TOKEN is a long-lived Yandex Passport token, not an IAM token.\n" +
-					"  Get one at https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb\n" +
-					"  Or use auth.type: auto to let jtsekret invoke `yc iam create-token` for you.")
+				"OAuth token not provided: set auth.token in config or YC_OAUTH_TOKEN env var; " +
+					"YC_OAUTH_TOKEN is a long-lived Yandex Passport token, not an IAM token; " +
+					"get one at https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb; " +
+					"or use auth.type: auto to let jtsekret invoke `yc iam create-token` for you")
 		}
 		return ycsdk.OAuthToken(token), nil
 	case "iam_token":
 		token := firstNonEmpty(auth.Token, os.Getenv("YC_IAM_TOKEN"))
 		if token == "" {
 			return nil, errors.New(
-				"IAM token not provided: set auth.token in config or YC_IAM_TOKEN env var.\n" +
-					"  Get one with: yc iam create-token  (12h lifetime)\n" +
-					"  Or use auth.type: auto to make jtsekret refresh it on every call.")
+				"IAM token not provided: set auth.token in config or YC_IAM_TOKEN env var; " +
+					"get one with `yc iam create-token` (12h lifetime); " +
+					"or use auth.type: auto to make jtsekret refresh it on every call")
 		}
 		return ycsdk.NewIAMTokenCredentials(token), nil
 	case "service_account_key":
@@ -144,7 +144,7 @@ func resolveCredentials(authType string, auth AuthConfig) (ycsdk.Credentials, er
 //     the user already authenticated with via `yc init`)
 //
 // If everything fails the returned error explains how to fix it.
-func autoCredentials(auth AuthConfig) (ycsdk.Credentials, error) {
+func autoCredentials(ctx context.Context, auth AuthConfig) (ycsdk.Credentials, error) {
 	if auth.Token != "" {
 		return ycsdk.NewIAMTokenCredentials(auth.Token), nil
 	}
@@ -162,20 +162,22 @@ func autoCredentials(auth AuthConfig) (ycsdk.Credentials, error) {
 			}
 		}
 	}
-	if token, err := iamTokenFromYCCLI(); err == nil {
+	token, err := iamTokenFromYCCLI(ctx)
+	if err == nil {
 		return ycsdk.NewIAMTokenCredentials(token), nil
-	} else if !errors.Is(err, errYCNotFound) {
+	}
+	if !errors.Is(err, errYCNotFound) {
 		return nil, fmt.Errorf(
-			"auth.type=auto: failed to obtain a token via `yc iam create-token`: %w\n"+
-				"  Run `yc init` to (re-)authenticate with Yandex Cloud, "+
-				"or set YC_IAM_TOKEN / YC_OAUTH_TOKEN / a service account key explicitly.", err)
+			"auth.type=auto: failed to obtain a token via `yc iam create-token`: %w; "+
+				"run `yc init` to (re-)authenticate with Yandex Cloud, "+
+				"or set YC_IAM_TOKEN / YC_OAUTH_TOKEN / a service account key explicitly", err)
 	}
 	return nil, errors.New(
-		"auth.type=auto: no Yandex Cloud credentials found. One of the following is required:\n" +
-			"  - install the `yc` CLI and run `yc init` (then jtsekret picks up auth automatically), or\n" +
-			"  - set YC_IAM_TOKEN (12h lifetime, from `yc iam create-token`), or\n" +
-			"  - set YC_OAUTH_TOKEN (long-lived, from https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb), or\n" +
-			"  - set YC_SERVICE_ACCOUNT_KEY_FILE pointing to a JSON service-account key.")
+		"auth.type=auto: no Yandex Cloud credentials found; one of the following is required: " +
+			"install the `yc` CLI and run `yc init` (then jtsekret picks up auth automatically); " +
+			"or set YC_IAM_TOKEN (12h lifetime, from `yc iam create-token`); " +
+			"or set YC_OAUTH_TOKEN (long-lived, from https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb); " +
+			"or set YC_SERVICE_ACCOUNT_KEY_FILE pointing to a JSON service-account key")
 }
 
 var errYCNotFound = errors.New("yc CLI not found in PATH")
@@ -183,11 +185,11 @@ var errYCNotFound = errors.New("yc CLI not found in PATH")
 // iamTokenFromYCCLI shells out to `yc iam create-token`. Returns
 // errYCNotFound if the CLI is not on PATH, allowing autoCredentials to
 // fall through to its terminal error message.
-func iamTokenFromYCCLI() (string, error) {
+func iamTokenFromYCCLI(ctx context.Context) (string, error) {
 	if _, err := exec.LookPath("yc"); err != nil {
 		return "", errYCNotFound
 	}
-	out, err := exec.Command("yc", "iam", "create-token").Output()
+	out, err := exec.CommandContext(ctx, "yc", "iam", "create-token").Output()
 	if err != nil {
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {

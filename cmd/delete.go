@@ -63,7 +63,7 @@ func runDelete(cmd *cobra.Command, args []string) error {
 	if !deleteForce {
 		fmt.Printf("Are you sure you want to delete secret %q? (yes/no): ", name)
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		if strings.ToLower(response) != "yes" {
 			fmt.Println("Cancelled")
 			return nil

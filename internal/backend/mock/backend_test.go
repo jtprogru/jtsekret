@@ -28,7 +28,7 @@ import (
 	"github.com/jtprogru/jtsekret/internal/backend"
 )
 
-func TestMockBackend_CreateSecret(t *testing.T) {
+func TestBackend_CreateSecret(t *testing.T) {
 	b, err := NewBackend(nil)
 	if err != nil {
 		t.Fatalf("NewBackend() error = %v", err)
@@ -53,7 +53,7 @@ func TestMockBackend_CreateSecret(t *testing.T) {
 	}
 }
 
-func TestMockBackend_GetPayload(t *testing.T) {
+func TestBackend_GetPayload(t *testing.T) {
 	b, err := NewBackend(nil)
 	if err != nil {
 		t.Fatalf("NewBackend() error = %v", err)
@@ -82,7 +82,7 @@ func TestMockBackend_GetPayload(t *testing.T) {
 	}
 }
 
-func TestMockBackend_AddVersion(t *testing.T) {
+func TestBackend_AddVersion(t *testing.T) {
 	b, err := NewBackend(nil)
 	if err != nil {
 		t.Fatalf("NewBackend() error = %v", err)
@@ -116,7 +116,7 @@ func TestMockBackend_AddVersion(t *testing.T) {
 	}
 }
 
-func TestMockBackend_DeleteSecret(t *testing.T) {
+func TestBackend_DeleteSecret(t *testing.T) {
 	b, err := NewBackend(nil)
 	if err != nil {
 		t.Fatalf("NewBackend() error = %v", err)
@@ -143,7 +143,7 @@ func TestMockBackend_DeleteSecret(t *testing.T) {
 	}
 }
 
-func TestMockBackend_ListSecrets(t *testing.T) {
+func TestBackend_ListSecrets(t *testing.T) {
 	b, err := NewBackend(nil)
 	if err != nil {
 		t.Fatalf("NewBackend() error = %v", err)

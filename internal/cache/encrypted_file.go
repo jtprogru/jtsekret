@@ -24,6 +24,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -54,7 +55,7 @@ func NewCache(ctx context.Context, cfg config.CacheConfig) (Cache, error) {
 type EncryptedFile struct {
 	filePath string
 	password []byte
-	data     *CacheData
+	data     *Data
 }
 
 func NewEncryptedFile(filePath string, password string) (*EncryptedFile, error) {
@@ -66,7 +67,7 @@ func NewEncryptedFile(filePath string, password string) (*EncryptedFile, error) 
 	ef := &EncryptedFile{
 		filePath: absPath,
 		password: []byte(password),
-		data:     &CacheData{Version: 1, Entries: make(map[string]CacheEntry)},
+		data:     &Data{Version: 1, Entries: make(map[string]Entry)},
 	}
 
 	if err := ef.load(); err != nil {
@@ -96,7 +97,7 @@ func (e *EncryptedFile) load() error {
 	}
 
 	if len(ciphertext) < crypto.SaltSize+crypto.NonceSize {
-		return fmt.Errorf("invalid cache file")
+		return errors.New("invalid cache file")
 	}
 
 	salt := ciphertext[:crypto.SaltSize]
@@ -112,7 +113,7 @@ func (e *EncryptedFile) load() error {
 		return fmt.Errorf("decrypt cache: %w", err)
 	}
 
-	var data CacheData
+	var data Data
 	if err := json.Unmarshal(plaintext, &data); err != nil {
 		return fmt.Errorf("unmarshal cache: %w", err)
 	}
@@ -179,14 +180,14 @@ func (e *EncryptedFile) save() error {
 func (e *EncryptedFile) Get(ctx context.Context, nameOrID string) (*domain.CachedPayload, error) {
 	entry, ok := e.data.Entries[nameOrID]
 	if !ok {
-		return nil, nil
+		return nil, nil //nolint:nilnil // (nil, nil) signals cache-miss to callers; sentinel error would be heavier
 	}
 
 	expiresAt := entry.CachedAt.Add(time.Duration(entry.TTLSeconds) * time.Second)
 	if time.Now().After(expiresAt) {
 		delete(e.data.Entries, nameOrID)
 		_ = e.save()
-		return nil, nil
+		return nil, nil //nolint:nilnil // expired entry treated identically to a miss
 	}
 
 	payload := &domain.CachedPayload{
@@ -208,7 +209,7 @@ func (e *EncryptedFile) Set(ctx context.Context, nameOrID string, payload *domai
 		entries = append(entries, domain.Entry{Key: k, Value: v})
 	}
 
-	e.data.Entries[nameOrID] = CacheEntry{
+	e.data.Entries[nameOrID] = Entry{
 		Payload: &domain.Payload{
 			SecretID:  nameOrID,
 			VersionID: "1",
@@ -231,7 +232,7 @@ func (e *EncryptedFile) Delete(ctx context.Context, nameOrID string) error {
 }
 
 func (e *EncryptedFile) Clear(ctx context.Context) error {
-	e.data.Entries = make(map[string]CacheEntry)
+	e.data.Entries = make(map[string]Entry)
 	return e.save()
 }
 

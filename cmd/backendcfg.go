@@ -22,6 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/jtprogru/jtsekret/internal/backend"
@@ -62,8 +63,8 @@ func backendConfigMap(cfg *config.Config) (map[string]interface{}, error) {
 			"auto_push":       cfg.Backend.Github.AutoPush,
 			"master_password": cfg.Backend.Github.MasterPassword,
 			"auth": map[string]interface{}{
-				"type":            cfg.Backend.Github.Auth.Type,
-				"token":           cfg.Backend.Github.Auth.Token,
+				"type":             cfg.Backend.Github.Auth.Type,
+				"token":            cfg.Backend.Github.Auth.Token,
 				"ssh_key_path":     cfg.Backend.Github.Auth.SSHKeyPath,
 				"ssh_key_password": cfg.Backend.Github.Auth.SSHKeyPassword,
 			},
@@ -76,7 +77,7 @@ func backendConfigMap(cfg *config.Config) (map[string]interface{}, error) {
 	case "mock":
 		return map[string]interface{}{}, nil
 	case "":
-		return nil, fmt.Errorf("backend.type is not set in config")
+		return nil, errors.New("backend.type is not set in config")
 	default:
 		return nil, fmt.Errorf("unsupported backend type: %s", cfg.Backend.Type)
 	}

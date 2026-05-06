@@ -86,7 +86,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "enable debug logging")
 
 	viper.SetEnvPrefix("JTSEKRET")
-	viper.BindPFlag("output.format", rootCmd.PersistentFlags().Lookup("output"))
+	_ = viper.BindPFlag("output.format", rootCmd.PersistentFlags().Lookup("output"))
 }
 
 func initConfig() {

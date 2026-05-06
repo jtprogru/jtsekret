@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -59,15 +60,15 @@ func init() {
 	execCmd.Flags().BoolVar(&execStdin, "stdin", false, "pass secret via stdin")
 	execCmd.Flags().BoolVar(&execNoCache, "no-cache", false, "skip cache")
 
-	execCmd.MarkFlagRequired("secret")
-	execCmd.MarkFlagRequired("key")
+	_ = execCmd.MarkFlagRequired("secret")
+	_ = execCmd.MarkFlagRequired("key")
 
 	rootCmd.AddCommand(execCmd)
 }
 
 func runExec(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("command required")
+		return errors.New("command required")
 	}
 
 	ctx := context.Background()
@@ -101,7 +102,7 @@ func runExec(cmd *cobra.Command, args []string) error {
 	command := args[0]
 	commandArgs := args[1:]
 
-	c := exec.Command(command, commandArgs...)
+	c := exec.CommandContext(ctx, command, commandArgs...)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
@@ -117,7 +118,8 @@ func runExec(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := c.Run(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.ExitCode())
 		}
 		return fmt.Errorf("execute command: %w", err)

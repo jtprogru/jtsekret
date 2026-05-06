@@ -30,20 +30,20 @@ import (
 	"github.com/jtprogru/jtsekret/internal/backend"
 )
 
-type MockBackend struct {
+type Backend struct {
 	mu       sync.RWMutex
 	secrets  map[string]*backend.Secret
 	payloads map[string]*backend.Payload
 }
 
 func NewBackend(cfg map[string]interface{}) (backend.Backend, error) {
-	return &MockBackend{
+	return &Backend{
 		secrets:  make(map[string]*backend.Secret),
 		payloads: make(map[string]*backend.Payload),
 	}, nil
 }
 
-func (m *MockBackend) ListSecrets(ctx context.Context) ([]backend.Secret, error) {
+func (m *Backend) ListSecrets(ctx context.Context) ([]backend.Secret, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -55,7 +55,7 @@ func (m *MockBackend) ListSecrets(ctx context.Context) ([]backend.Secret, error)
 	return secrets, nil
 }
 
-func (m *MockBackend) GetSecret(ctx context.Context, nameOrID string) (*backend.Secret, error) {
+func (m *Backend) GetSecret(ctx context.Context, nameOrID string) (*backend.Secret, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -75,7 +75,7 @@ func (m *MockBackend) GetSecret(ctx context.Context, nameOrID string) (*backend.
 	return secret, nil
 }
 
-func (m *MockBackend) GetPayload(ctx context.Context, nameOrID string, versionID string) (*backend.Payload, error) {
+func (m *Backend) GetPayload(ctx context.Context, nameOrID string, versionID string) (*backend.Payload, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -94,7 +94,7 @@ func (m *MockBackend) GetPayload(ctx context.Context, nameOrID string, versionID
 	return payload, nil
 }
 
-func (m *MockBackend) CreateSecret(ctx context.Context, name, description string, entries []backend.Entry) (*backend.Secret, error) {
+func (m *Backend) CreateSecret(ctx context.Context, name, description string, entries []backend.Entry) (*backend.Secret, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -129,7 +129,7 @@ func (m *MockBackend) CreateSecret(ctx context.Context, name, description string
 	return secret, nil
 }
 
-func (m *MockBackend) AddVersion(ctx context.Context, nameOrID string, entries []backend.Entry) error {
+func (m *Backend) AddVersion(ctx context.Context, nameOrID string, entries []backend.Entry) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -169,7 +169,7 @@ func (m *MockBackend) AddVersion(ctx context.Context, nameOrID string, entries [
 	return nil
 }
 
-func (m *MockBackend) DeleteSecret(ctx context.Context, nameOrID string) error {
+func (m *Backend) DeleteSecret(ctx context.Context, nameOrID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

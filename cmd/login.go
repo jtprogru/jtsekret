@@ -22,6 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -54,28 +55,28 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	}
 	switch provider {
 	case "yc":
-		return loginYC()
+		return loginYC(cmd.Context())
 	default:
 		return fmt.Errorf("unknown provider %q (supported: yc)", provider)
 	}
 }
 
-func loginYC() error {
+func loginYC(ctx context.Context) error {
 	if _, err := exec.LookPath("yc"); err != nil {
 		return errors.New(
-			"yc CLI not found in PATH.\n" +
-				"  Install it from https://cloud.yandex.com/docs/cli/quickstart, then re-run `jtsekret login yc`.\n" +
-				"  Alternatively set YC_OAUTH_TOKEN or YC_IAM_TOKEN manually.")
+			"yc CLI not found in PATH. " +
+				"Install it from https://cloud.yandex.com/docs/cli/quickstart and re-run `jtsekret login yc`. " +
+				"Alternatively set YC_OAUTH_TOKEN or YC_IAM_TOKEN manually")
 	}
 	fmt.Fprintln(os.Stdout, "Launching `yc init` (browser-based OAuth flow). Follow the prompts in your browser…")
-	c := exec.Command("yc", "init")
+	c := exec.CommandContext(ctx, "yc", "init")
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	if err := c.Run(); err != nil {
 		return fmt.Errorf("yc init: %w", err)
 	}
-	if out, err := exec.Command("yc", "iam", "create-token").Output(); err == nil && len(out) > 0 {
+	if out, err := exec.CommandContext(ctx, "yc", "iam", "create-token").Output(); err == nil && len(out) > 0 {
 		fmt.Fprintln(os.Stdout, "OK — `yc iam create-token` produced a token. jtsekret will now auto-refresh tokens via yc.")
 		return nil
 	}
