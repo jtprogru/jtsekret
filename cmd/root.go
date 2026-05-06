@@ -23,13 +23,18 @@ package cmd
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+// LogLevel is the dynamic level shared with the slog handler set up in
+// main.main(). PersistentPreRunE flips it to Debug when --debug is passed
+// or to whatever log.level says in the config file.
+var LogLevel slog.LevelVar
 
 var (
 	cfgFile    string
@@ -57,6 +62,7 @@ Examples:
 		if noCache {
 			viper.Set("cache.enabled", false)
 		}
+		applyLogLevel()
 		return nil
 	},
 }
@@ -101,6 +107,26 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		// Apply level here too so the config-file path is visible under --debug
+		// — initConfig runs before PersistentPreRunE.
+		applyLogLevel()
+		slog.Debug("using config file", slog.String("path", viper.ConfigFileUsed()))
+	}
+}
+
+func applyLogLevel() {
+	if debugMode {
+		LogLevel.Set(slog.LevelDebug)
+		return
+	}
+	switch viper.GetString("log.level") {
+	case "debug":
+		LogLevel.Set(slog.LevelDebug)
+	case "info":
+		LogLevel.Set(slog.LevelInfo)
+	case "error":
+		LogLevel.Set(slog.LevelError)
+	default:
+		LogLevel.Set(slog.LevelWarn)
 	}
 }

@@ -50,11 +50,16 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// Default to Warn so non-interactive subcommands (completion, exec piped
+	// into another process) don't pollute stderr with startup noise. The
+	// level is bumped to Debug by --debug or to whatever cfg.Log.Level says
+	// inside PersistentPreRunE, once flags and config have been parsed.
+	cmd.LogLevel.Set(slog.LevelWarn)
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: &cmd.LogLevel,
 	})))
 
-	slog.Info("starting jtsekret",
+	slog.Debug("starting jtsekret",
 		slog.String("version", version),
 		slog.String("commit", commit),
 		slog.String("runtime", runtime.Version()),
