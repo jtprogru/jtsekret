@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -200,6 +201,12 @@ func dumpEntry(e backend.Entry, mode os.FileMode) error {
 		if err != nil {
 			return fmt.Errorf("expand dir path: %w", err)
 		}
+		// e.Key becomes a filename inside --dir and may originate from an
+		// external backend (Lockbox/Vault). Reject path components / traversal
+		// so a crafted entry key cannot escape the target directory.
+		if err := validateEntryKey(e.Key); err != nil {
+			return err
+		}
 		dest = filepath.Join(expanded, e.Key)
 	} else {
 		expanded, err := expandHome(dest)
@@ -257,6 +264,19 @@ func dumpEntry(e backend.Entry, mode os.FileMode) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "Wrote %s (mode %s)\n", dest, mode)
+	return nil
+}
+
+// validateEntryKey ensures an entry key is safe to use as a filename: it must
+// be a plain base name with no path separators or ".." traversal components.
+// Entry keys can come from external backends, so they are not trusted input.
+func validateEntryKey(key string) error {
+	if key == "" {
+		return errors.New("entry key is empty")
+	}
+	if key != filepath.Base(key) || strings.ContainsAny(key, `/\`) || strings.Contains(key, "..") {
+		return fmt.Errorf("entry key %q is not a safe filename", key)
+	}
 	return nil
 }
 

@@ -55,6 +55,10 @@ func runSet(cmd *cobra.Command, args []string) error {
 	value := args[2]
 	ctx := context.Background()
 
+	if err := validateEntryKey(key); err != nil {
+		return err
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)

@@ -1,4 +1,6 @@
-.PHONY: build test lint clean release install
+.PHONY: build test lint clean release install help
+
+.DEFAULT_GOAL := help
 
 BINARY_DIR=dist
 BINARY_NAME=jtsekret

@@ -27,6 +27,20 @@ func newBackend(t *testing.T) *Backend {
 	return b.(*Backend)
 }
 
+func TestValidateName(t *testing.T) {
+	bad := []string{"", "a/b", `a\b`, "..", "x/..", "../x"}
+	for _, n := range bad {
+		if err := validateName(n); err == nil {
+			t.Errorf("validateName(%q) = nil, want error", n)
+		}
+	}
+	for _, n := range []string{"a", "secret-1", "my.token", "Long_Name_42"} {
+		if err := validateName(n); err != nil {
+			t.Errorf("validateName(%q) = %v, want nil", n, err)
+		}
+	}
+}
+
 func TestFile_CRUD(t *testing.T) {
 	ctx := context.Background()
 	b := newBackend(t)

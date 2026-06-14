@@ -7,6 +7,12 @@
 бэкендов и опциональных полей — minor; ломающие изменения существующих
 полей или поведения — major.
 
+## v1.0.1 — фикс path traversal в `dump` + тесты
+
+- **Security: path traversal через ключи записей в `jtsekret dump`.** `dump <name> --dir <dir>` без `--key` писал каждую запись в `filepath.Join(dir, e.Key)`, где `e.Key` приходил из payload бэкенда (Lockbox/Vault — со стороны облака) без валидации. Ключ вида `../../../.ssh/authorized_keys` мог записать контролируемое значение вне `--dir` (перезапись SSH-ключей / shell-rc / конфига). Добавлен `validateEntryKey` (отвергает пустые ключи, разделители пути и `..`); применяется в `dumpEntry` и на этапе записи в `set`/`create`. Ветка `--output <path>` (доверенный CLI-флаг) не затронута.
+- Тесты: `validateEntryKey`, отклонение traversal-ключа в `dumpEntry`/`runSet`/`runCreate` (через mock-бэкенд), ветки `--output`/`--output -`; добавлен отсутствовавший `TestValidateName` для file-бэкенда.
+- Lint: подавлены ложные срабатывания gosec G117 на `audit.Entry.Secret` (поле хранит имя секрета, не значение); `make` по умолчанию вызывает `help`.
+
 ## v1.0.0 — стабилизация публичного конфига и фаза релиза
 
 - **Жёсткий `Validate()` для каждого бэкенда** (`internal/config/validate.go`).

@@ -81,6 +81,9 @@ func runCreate(cmd *cobra.Command, args []string) error {
 
 	var entries []backend.Entry
 	if createKey != "" {
+		if err := validateEntryKey(createKey); err != nil {
+			return err
+		}
 		value := createValue
 		if value == "" {
 			value, err = crypto.PromptPassword("Enter value: ")
