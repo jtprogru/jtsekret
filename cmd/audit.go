@@ -77,7 +77,7 @@ func runAuditShow(cmd *cobra.Command, args []string) error {
 	if auditJSON {
 		enc := json.NewEncoder(os.Stdout)
 		for _, e := range entries {
-			if err := enc.Encode(e); err != nil { //nolint:gosec // G117 false positive: Entry.Secret holds the secret NAME, never its value
+			if err := enc.Encode(e); err != nil {
 				return err
 			}
 		}

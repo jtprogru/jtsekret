@@ -219,10 +219,15 @@ linters:
   #   - wrapcheck
   #   - wsl
   #   # - zerologlint
-  # # All available settings of specific linters.
-  # settings:
-  #   # See the dedicated "linters.settings" documentation section.
-  #   option: value
+  settings:
+    gosec:
+      # G117 flags marshaled struct fields whose name matches a "secret"
+      # pattern. audit.Entry.Secret holds the secret NAME, never its value,
+      # so the rule is a false positive here. Excluded at config level
+      # (not via //nolint) to stay consistent across gosec versions — CI's
+      # gosec lacks G117 and nolintlint would flag an unused directive.
+      excludes:
+        - G117
   # Defines a set of rules to ignore issues.
   # It does not skip the analysis, and so does not ignore "typecheck" errors.
   exclusions:

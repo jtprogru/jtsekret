@@ -107,7 +107,7 @@ func Append(e Entry) error {
 		return fmt.Errorf("audit open: %w", err)
 	}
 	defer f.Close()
-	line, err := json.Marshal(e) //nolint:gosec // G117 false positive: Entry.Secret holds the secret NAME, never its value
+	line, err := json.Marshal(e)
 	if err != nil {
 		return fmt.Errorf("audit marshal: %w", err)
 	}
