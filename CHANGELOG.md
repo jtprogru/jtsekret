@@ -11,7 +11,8 @@
 
 - **Security: path traversal через ключи записей в `jtsekret dump`.** `dump <name> --dir <dir>` без `--key` писал каждую запись в `filepath.Join(dir, e.Key)`, где `e.Key` приходил из payload бэкенда (Lockbox/Vault — со стороны облака) без валидации. Ключ вида `../../../.ssh/authorized_keys` мог записать контролируемое значение вне `--dir` (перезапись SSH-ключей / shell-rc / конфига). Добавлен `validateEntryKey` (отвергает пустые ключи, разделители пути и `..`); применяется в `dumpEntry` и на этапе записи в `set`/`create`. Ветка `--output <path>` (доверенный CLI-флаг) не затронута.
 - Тесты: `validateEntryKey`, отклонение traversal-ключа в `dumpEntry`/`runSet`/`runCreate` (через mock-бэкенд), ветки `--output`/`--output -`; добавлен отсутствовавший `TestValidateName` для file-бэкенда.
-- Lint: ложное срабатывание gosec G117 на `audit.Entry.Secret` (поле хранит имя секрета, не значение) исключено на уровне `.golangci.yaml` (`gosec.excludes`), а не через `//nolint` — иначе `nolintlint` падал в CI, где gosec без G117. `make` по умолчанию вызывает `help`.
+- Security (deps): обновлены `golang.org/x/crypto` v0.49.0 → v0.52.0 и `golang.org/x/net` v0.51.0 → v0.55.0 — закрывают 9 CVE (GO-2026-5013…5026, GO-2026-4918) в `x/crypto/ssh*` и `x/net/idna`, которые ловил `govulncheck` в CI. `vendor/` пересинхронизирован.
+- Lint: ложное срабатывание gosec G117 на `audit.Entry.Secret` (поле хранит имя секрета, не значение) исключено на уровне `.golangci.yaml` (`gosec.excludes`), а не через `//nolint`. Версия golangci-lint в CI выровнена с локальной (v2.5.0 → v2.12.2): на v2.5.0 правила G117 не было, из-за чего ломались и `//nolint` (unused), и сам `gosec.excludes` (schema verify). `make` по умолчанию вызывает `help`.
 
 ## v1.0.0 — стабилизация публичного конфига и фаза релиза
 
