@@ -77,7 +77,7 @@ homebrew_casks:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Casks
     homepage: "https://github.com/jtprogru/jtsekret"
-    description: "CLI for personal secrets management with pluggable backends."
+    description: "CLI for personal secrets management with pluggable backends"
     # Strip the quarantine xattr from the unsigned binary on install. This goes
     # in install_steps, not custom_block: goreleaser renders custom_block at the
     # top of the cask, where brew style rejects postflight_steps.
