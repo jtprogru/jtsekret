@@ -77,8 +77,11 @@ homebrew_casks:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Casks
     homepage: "https://github.com/jtprogru/jtsekret"
-    description: "CLI for personal secrets management with pluggable backends."
-    custom_block: |
-      postflight_steps do
-        run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{staged_path}}" }}/jtsekret"]
-      end
+    description: "CLI for personal secrets management with pluggable backends"
+    # Strip the quarantine xattr from the unsigned binary on install. This goes
+    # in install_steps, not custom_block: goreleaser renders custom_block at the
+    # top of the cask, where brew style rejects postflight_steps.
+    hooks:
+      post:
+        install_steps: |
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/jtsekret"]
